@@ -28,7 +28,7 @@ import {
 const DIAG_KEY = 'taxiPayAuthDiagnosticV17';
 const ATTEMPT_KEY = 'taxiPayAuthAttemptV1';
 const MAX_STEPS = 120;
-const DIAGNOSTIC_BUILD = 'phase7.5-operations-foundation-20260806-02';
+const DIAGNOSTIC_BUILD = 'phase7.5-operations-foundation-20260806-03';
 
 function safeStorageGet() {
   try { return JSON.parse(localStorage.getItem(DIAG_KEY) || '{}'); } catch { return {}; }
@@ -199,7 +199,7 @@ function createDiagnosticUI() {
     const ua = navigator.userAgent;
     const env = state.environment || {};
     const lines = [
-      'タクシー給与シミュレーター ログイン診断',
+      'DEVELOP_タクシー給与シミュレーター ログイン診断',
       `診断版: ${DIAGNOSTIC_BUILD}`,
       `URL: ${location.origin}${location.pathname}`,
       `端末情報: ${ua}`,
