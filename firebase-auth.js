@@ -27,7 +27,7 @@ import {
 const DIAG_KEY = 'taxiPayAuthDiagnosticV17';
 const ATTEMPT_KEY = 'taxiPayAuthAttemptV1';
 const MAX_STEPS = 120;
-const DIAGNOSTIC_BUILD = 'phase0-07-firestore-user-fix';
+const DIAGNOSTIC_BUILD = 'phase7-r7-safari-popup-timing-fix';
 
 function safeStorageGet() {
   try { return JSON.parse(localStorage.getItem(DIAG_KEY) || '{}'); } catch { return {}; }
@@ -685,7 +685,8 @@ export async function initializeTaxiPayAuth(){
 
   login.addEventListener('click',async()=>{
     I?.add('V17-LOGIN-CLICK','Googleログインボタンが押されました。');
-    await refreshSystemAnnouncement();
+    // お知らせは起動時に取得済み。Safariのユーザー操作権限を維持するため、
+    // ログインボタン押下後は通信待ちを挟まず、キャッシュ済み状態を確認する。
     if (announcementIsActive(currentSystemAnnouncement) && currentSystemAnnouncement.blockLogin === true) {
       setMessage(String(currentSystemAnnouncement.message || 'システム改修中のためログインできません。'), 'error');
       return;
@@ -699,7 +700,7 @@ export async function initializeTaxiPayAuth(){
     diag.step(
       'AUTH-DEVICE-METHOD',
       isIOS
-        ? 'iPhone・iPadのためポップアップ方式でログインします。'
+        ? 'iPhone・iPadのため、タップ直後にポップアップ方式でログインします。'
         : isAndroid
           ? 'Android Chromeのためポップアップ方式でログインします。'
           : 'PCのためポップアップ方式でログインします。'
@@ -707,23 +708,14 @@ export async function initializeTaxiPayAuth(){
     diag.step('AUTH-ATTEMPT-SAVED','ログイン試行情報を端末に保存しました。','success');
 
     try {
-      diag.step('AUTH-PERSIST-START','認証情報の保存方式を設定しています。');
-      try {
-        await withTimeout(
-          setPersistence(auth,browserLocalPersistence),
-          8000,
-          'auth/persistence-timeout',
-          '認証情報の保存設定が時間内に完了しませんでした。'
-        );
-        diag.step('AUTH-PERSIST-OK','認証情報の保存設定に成功しました。','success');
-      } catch (persistErr) {
-        diag.step(
-          'AUTH-PERSIST-WARN',
-          '認証情報の保存設定を完了できませんでしたが、ログイン処理を続行します。',
-          'warning',
-          persistErr?.message || persistErr
-        );
-      }
+      // Safariでは、利用者のタップ後にawaitを挟むとポップアップが
+      // ユーザー操作由来と認識されず auth/popup-blocked になる場合がある。
+      // Persistenceは起動時に設定済みなので、ここでは直ちにPopupを開く。
+      diag.step(
+        'AUTH-PERSIST-REUSE',
+        '起動時に設定済みの認証情報保存方式を使用します。',
+        'success'
+      );
 
       if(isIOS){
         updateAttempt({method:'popup',phase:'popup-start',isIOS});
