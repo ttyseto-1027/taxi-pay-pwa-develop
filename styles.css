@@ -1,0 +1,502 @@
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;color:#17212b;background:#eef3f5;line-height:1.5;--primary:#0f4c5c;--primary2:#176b7e;--danger:#a52a2a;--border:#d6e0e4;--muted:#5e6b73}*{box-sizing:border-box}body{margin:0}.app-header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px max(16px,env(safe-area-inset-left));background:var(--primary);color:#fff;box-shadow:0 2px 8px #0002}.app-header h1{font-size:1.15rem;margin:0}.app-header p{margin:2px 0 0;font-size:.82rem;opacity:.9}main{max-width:980px;margin:18px auto;padding:0 12px 40px}.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;margin:0 0 16px;box-shadow:0 3px 14px #17313b0d}h2{font-size:1.18rem;margin:0 0 14px}h3{font-size:1rem;margin:20px 0 10px}.month-row{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:12px}.month-row input{max-width:170px}.summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.summary-grid>div{padding:12px;background:#f5f8f9;border-radius:10px}.summary-grid span{display:block;font-size:.78rem;color:var(--muted)}.summary-grid strong{display:block;margin-top:4px;font-size:1.03rem;overflow-wrap:anywhere}.quick-form{display:grid;grid-template-columns:1fr 1.3fr 1.3fr;gap:12px;align-items:end}.quick-form .actions{grid-column:1/-1}label{display:block;font-size:.86rem;font-weight:650;color:#33434b}input,select,button{font:inherit}input,select{width:100%;margin-top:5px;border:1px solid #b9c8cf;border-radius:9px;padding:11px;background:#fff;color:#17212b}input[readonly]{background:#edf2f4;color:#526168}.money-input{display:flex;align-items:center}.money-input input{border-radius:9px 0 0 9px}.money-input span{margin-top:5px;padding:11px 10px;border:1px solid #b9c8cf;border-left:0;border-radius:0 9px 9px 0;background:#edf2f4}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}button{border:0;border-radius:9px;padding:10px 14px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer}button:hover{filter:brightness(1.06)}button.secondary{background:#39798a}button.ghost{background:#e5edf0;color:#20323b}button.danger{background:var(--danger)}.icon-button{font-size:1.25rem;padding:8px 10px;background:#ffffff22}.note{font-size:.82rem;color:var(--muted)}.disclaimer{font-size:.78rem;color:#5c5050;background:#fff5f3;border-left:4px solid #bd6b5c;padding:10px;border-radius:4px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:.88rem}th,td{border-bottom:1px solid var(--border);padding:10px 8px;text-align:left;white-space:nowrap}th{background:#f2f6f7}.history-item{padding:12px;border:1px solid var(--border);border-radius:9px;margin-bottom:8px}.modal{border:0;border-radius:14px;padding:0;max-width:680px;width:min(94vw,680px);box-shadow:0 18px 60px #0005}.modal::backdrop{background:#0d202899}.modal form{padding:22px}.settings-modal{max-height:90vh;overflow:auto}.modal-title-row{display:flex;align-items:center;justify-content:space-between}.modal-title-row .icon-button{background:#edf2f4;color:#1f3139}.rule-box{margin:12px 0;padding:12px;background:#edf7f9;border-radius:9px;font-size:.86rem}.agree{display:flex;gap:8px;align-items:flex-start;margin:14px 0}.agree input{width:auto;margin-top:4px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}details{margin-top:16px}summary{cursor:pointer;font-weight:700}.hidden{display:none!important}@media(max-width:700px){.quick-form,.form-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.app-header h1{font-size:1rem}.card{padding:14px}.month-row{justify-content:space-between}.month-row button{padding:9px 10px;font-size:.8rem}}@media(max-width:430px){.summary-grid{grid-template-columns:1fr}.quick-form{grid-template-columns:1fr}.money-input input{font-size:1.15rem}}@media print{body{background:#fff}.no-print,.app-header,dialog{display:none!important}main{max-width:none;margin:0;padding:0}.card{box-shadow:none;border:0;padding:0;margin:0 0 18px}.summary-grid{grid-template-columns:repeat(3,1fr)}.disclaimer{border:1px solid #aaa}}
+.entry-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}.entry-form fieldset{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin:0}.entry-form legend{font-size:.82rem;font-weight:700}.time-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check-label{display:flex;align-items:center;gap:8px;padding:10px 0}.check-label input{width:auto;margin:0}.full{grid-column:1/-1}.breakdown{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.breakdown h4{grid-column:1/-1;margin:12px 0 2px;border-bottom:1px solid var(--border);padding-bottom:4px}.breakdown>div{display:flex;justify-content:space-between;gap:12px;background:#f7f9fa;padding:9px;border-radius:7px}.breakdown span{color:var(--muted);font-size:.84rem}@media(max-width:700px){.entry-form{grid-template-columns:1fr}.breakdown{grid-template-columns:1fr}}
+
+/* Version 1.0β: service disclaimer and legal information */
+.app-disclaimer {
+  margin-top: 1.25rem;
+  padding: .9rem 1rem;
+  border: 1px solid rgba(15, 76, 92, .28);
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  background: #f4f8f9;
+  color: #465960;
+  font-size: .82rem;
+  line-height: 1.65;
+  text-align: left;
+}
+.app-disclaimer p { margin: .35rem 0; }
+.app-disclaimer .disclaimer-title { margin-top: 0; color: #20343c; font-weight: 800; }
+.app-disclaimer .version-line {
+  margin-top: .55rem;
+  text-align: center;
+  letter-spacing: .01em;
+}
+.legal-details { margin-top: 1rem; }
+.legal-copy {
+  padding: .75rem .15rem .15rem;
+  color: #495b61;
+  font-size: .85rem;
+  line-height: 1.65;
+}
+.legal-copy h4 { margin: .65rem 0 .25rem; }
+.legal-copy p { margin: .25rem 0 .65rem; }
+@media print {
+  .app-disclaimer { font-size: 8.5pt; color: #555; break-inside: avoid; }
+}
+
+/* Layout order is fixed on both desktop and mobile. */
+.app-layout{display:flex;flex-direction:column}
+.layout-entry{order:1}
+.layout-daily{order:2}
+.layout-simulation{order:3}
+.layout-history{order:4}
+.layout-footer{order:5}
+
+/* 休憩時間の選択式入力：スマホではOS標準のピッカーを使用 */
+.break-picker{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.break-picker label{display:grid;grid-template-columns:auto minmax(5.5em,1fr) auto;gap:8px;align-items:center}
+.break-picker label>span:first-child{font-size:.82rem;font-weight:700;color:var(--muted)}
+.break-picker select{min-height:48px;font-size:1.1rem;font-weight:700;text-align:center;text-align-last:center;background:#fff;touch-action:manipulation}
+.break-picker label>span:last-child{font-size:.9rem}
+@media(max-width:420px){.break-picker{grid-template-columns:1fr}.break-picker select{min-height:52px;font-size:1.15rem}}
+
+
+/* Firebase Authentication / user management */
+.auth-pending > .app-header,
+.auth-pending > main,
+.auth-pending > dialog { display:none !important; }
+.auth-gate{position:static;width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(145deg,#e8f3f5,#f7fafb);overflow:visible}
+.auth-gate[hidden]{display:none!important}
+.auth-card{width:min(100%,480px);background:#fff;border-radius:18px;padding:24px;box-shadow:0 14px 40px rgba(0,0,0,.16)}
+.auth-card h1{margin-top:0;font-size:1.55rem}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0}
+.auth-tab{background:#e7eef0;color:#19383f;border:0}
+.auth-tab.active{background:var(--primary,#0f4c5c);color:#fff}
+.auth-form{display:grid;gap:14px}
+.auth-form[hidden]{display:none!important}
+.auth-form label{display:grid;gap:6px;font-weight:700}
+.auth-form input{min-height:48px;font-size:1rem}
+.auth-message{min-height:1.4em;margin:8px 0;color:#a11212;font-weight:700}
+.auth-message[data-kind="info"]{color:#305d6a}
+.setup-notice{padding:12px;border:1px solid #d7a900;background:#fff8d8;border-radius:10px}
+.auth-footnote{font-size:.8rem;color:var(--muted,#667);line-height:1.6;margin-bottom:0}
+.header-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.signed-in-user{font-size:.82rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-link{display:inline-flex;align-items:center;text-decoration:none;padding:.55rem .7rem;border-radius:8px}
+.admin-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.admin-summary>div{background:#f1f5f6;border-radius:12px;padding:14px;display:grid;gap:5px}
+.admin-summary span{font-size:.82rem;color:var(--muted,#667)}
+.admin-summary strong{font-size:1.35rem}
+.code-admin-box{margin:16px 0;padding:16px;background:#f6f8f9;border-radius:12px}
+.code-admin-form{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end}
+@media(max-width:700px){.header-controls{width:100%;justify-content:flex-start}.signed-in-user{max-width:100%}.admin-summary{grid-template-columns:1fr}.code-admin-form{grid-template-columns:1fr}.auth-card{padding:18px}}
+
+
+/* Paid leave management */
+.paid-leave-selector{grid-column:1/-1}.paid-leave-radios{display:flex;flex-wrap:wrap;gap:10px}.paid-leave-radios label{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:46px;padding:9px 16px;border:1px solid #b8c8cc;border-radius:10px;background:#fff;font-weight:700;cursor:pointer}.paid-leave-radios label:has(input:checked){border-color:var(--primary);background:#e6f1f3;box-shadow:inset 0 0 0 1px var(--primary)}.paid-leave-radios input{width:1.15rem;height:1.15rem;margin:0}.paid-leave-settings{margin-bottom:10px}.paid-leave-history{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:10px;max-height:180px;overflow:auto}.paid-leave-history div{padding:4px 0}.entry-form :disabled{opacity:.55;cursor:not-allowed}.code-admin-box hr{border:0;border-top:1px solid var(--border);margin:22px 0}@media(max-width:520px){.paid-leave-radios{display:grid;grid-template-columns:repeat(3,1fr)}.paid-leave-radios label{padding:9px 5px}}
+
+/* 利用者代行登録 */
+.proxy-registration-box { margin-top: 18px; }
+.proxy-registration-box .code-admin-form { align-items: end; }
+.proxy-registration-box select { min-height: 44px; }
+
+/* v1.2β 初回パスワード変更（必須） */
+.password-change-pending > .app-header,
+.password-change-pending > main,
+.password-change-pending > dialog,
+.password-change-pending > .auth-gate { display:none !important; }
+.password-change-gate{position:static;width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(145deg,#e8f3f5,#f7fafb);overflow:visible}
+.password-change-gate[hidden]{display:none!important}
+.password-change-gate .ghost{width:100%;margin-top:10px}
+
+.account-password-section{margin:18px 0;padding:16px;border:1px solid var(--border);border-radius:12px;background:#f7fafb}.account-password-section h3{margin-top:0}.account-password-message{margin-top:12px}.account-password-section button:disabled{opacity:.6;cursor:wait}
+
+
+/* v1.2β input safety audit 2026-07-17
+   Interactive controls remain in the normal hit-test flow.
+   Intentional disabled and readonly states are preserved. */
+.auth-card,.modal form,.entry-form,.form-grid,.code-admin-form{isolation:isolate}
+input:not(:disabled),select:not(:disabled),textarea:not(:disabled),button:not(:disabled),label{pointer-events:auto}
+input:not(:disabled),select:not(:disabled),textarea:not(:disabled){touch-action:manipulation;-webkit-user-select:text;user-select:text}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid rgba(15,76,92,.35);outline-offset:2px}
+.auth-gate::before,.auth-gate::after,.password-change-gate::before,.password-change-gate::after,.auth-card::before,.auth-card::after{content:none!important;display:none!important;pointer-events:none!important}
+body.auth-pending,body.password-change-pending{min-height:100vh}
+@media(max-width:520px){.auth-gate,.password-change-gate{align-items:flex-start}.auth-card{margin-top:12px;margin-bottom:12px}}
+
+.google-login-button{width:100%;min-height:50px;margin:12px 0;padding:12px 16px;border:1px solid #c7cdd1;border-radius:8px;background:#fff;color:#222;font:inherit;font-weight:700;cursor:pointer}.google-login-button:hover{background:#f7f7f7}.google-login-button:disabled{opacity:.6;cursor:wait}
+
+/* v1.3β diagnostics, notifications and union dashboard */
+.notification-center{position:fixed;top:12px;right:12px;z-index:9999;display:grid;gap:8px;width:min(92vw,420px)}
+.app-notification{padding:12px 14px;border-radius:10px;background:#eef4f6;border-left:5px solid #305d6a;box-shadow:0 5px 20px rgba(0,0,0,.2);display:grid;gap:4px}
+.app-notification.success{background:#e9f7ef;border-color:#25834b}.app-notification.warning{background:#fff7d8;border-color:#c18b00}.app-notification.error{background:#fdeaea;border-color:#b42318}.app-notification small{font-size:.75rem;color:#59656a}
+.eligibility-badge{font-size:.78rem;padding:5px 8px;border-radius:999px;background:#e7eef0}.union-dashboard input{width:100%;margin-top:6px}.prereg-notice{margin:12px 0}
+
+/* Login diagnostics v1.3 beta */
+.auth-diagnostic{margin-top:14px;text-align:left;border:1px solid #9bbbc4;border-radius:10px;background:#f5fbfc;padding:10px}
+.auth-diagnostic summary{cursor:pointer;font-weight:700;color:#174d5b}
+.auth-diagnostic-help{margin:8px 0;font-size:.88rem;color:#49636a}
+.auth-diagnostic-current{padding:10px;border-radius:8px;background:#e8f3f5;color:#174d5b;font-weight:700;white-space:pre-wrap}
+.auth-diagnostic-steps{margin:10px 0;padding-left:1.7rem;font-size:.9rem;line-height:1.55}
+.auth-diagnostic-steps li[data-level="success"]{color:#19652b}
+.auth-diagnostic-steps li[data-level="error"]{color:#a11212;font-weight:700}
+.auth-diagnostic-steps li[data-level="info"]{color:#305d6a}
+.auth-diagnostic-error{margin-top:10px;padding:10px;border:1px solid #d99797;border-radius:8px;background:#fff0f0;color:#8f1111;font-weight:700;white-space:pre-wrap;overflow-wrap:anywhere}
+.auth-diagnostic-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.auth-diagnostic-actions button{font-size:.85rem;padding:8px 10px}
+
+
+/* ============================================================
+   v12 管理画面・ヘッダーデザイン
+   ============================================================ */
+:root{
+  --admin-navy:#073b55;
+  --admin-navy-deep:#052f45;
+  --admin-gold:#ffc533;
+  --admin-blue:#0969e8;
+  --admin-green:#10a866;
+  --admin-purple:#7841c6;
+  --admin-red:#e52e35;
+}
+
+.app-header{
+  background:linear-gradient(135deg,var(--admin-navy-deep),var(--admin-navy));
+}
+
+.eligibility-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:38px;
+  padding:7px 15px;
+  border-radius:999px;
+  background:#f7fbff;
+  color:#136dd8;
+  border:1px solid #d8eaff;
+  font-weight:800;
+  box-shadow:0 2px 8px #001a2b24;
+}
+
+.signed-in-user{
+  color:#fff;
+  font-weight:800;
+  max-width:190px;
+}
+
+.app-header .admin-link{
+  background:var(--admin-gold);
+  color:#173446;
+  border:1px solid #ffd867;
+  font-weight:900;
+  box-shadow:0 2px 8px #001a2b30;
+}
+
+.app-header .admin-link:hover{
+  background:#ffd357;
+  filter:none;
+}
+
+.app-header button.ghost{
+  background:#fff;
+  color:#173446;
+  border:1px solid #dce8ee;
+}
+
+.admin-app-header{
+  min-height:82px;
+  padding-block:16px;
+}
+
+.admin-page-title{
+  color:var(--admin-gold);
+  font-size:clamp(1.35rem,3vw,2rem)!important;
+  letter-spacing:.02em;
+  text-shadow:0 2px 10px #0005;
+}
+
+.admin-app-header p{
+  color:#d7e8ef;
+}
+
+.admin-dashboard-card{
+  border-color:#d9e5eb;
+  box-shadow:0 10px 30px #17313b14;
+}
+
+.admin-action-guide{
+  margin:0 0 18px;
+  padding:13px 16px;
+  border:1px solid #add3ff;
+  border-radius:10px;
+  background:#f1f8ff;
+  color:#1557a0;
+  font-weight:700;
+}
+
+.admin-button{
+  min-height:44px;
+  box-shadow:0 4px 12px #102b3a1f;
+}
+
+.admin-button-blue{background:var(--admin-blue)}
+.admin-button-green{background:var(--admin-green)}
+.admin-button-purple{background:var(--admin-purple)}
+.admin-button-neutral{background:#677683}
+
+.table-action-buttons{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:nowrap;
+}
+
+.table-action-button{
+  min-height:36px;
+  padding:7px 10px;
+  border-radius:7px;
+  white-space:nowrap;
+  font-size:.82rem;
+  box-shadow:0 2px 7px #102b3a20;
+}
+
+.edit-action{background:var(--admin-blue)}
+.toggle-action{background:#dd8b13}
+.delete-action{background:var(--admin-red)}
+
+.delete-action:hover{
+  background:#c91f27;
+  filter:none;
+}
+
+.admin-page th{
+  background:#f2f5f7;
+  color:#17212b;
+  font-weight:800;
+}
+
+.admin-page tbody tr:hover{
+  background:#f8fbfd;
+}
+
+.admin-page [data-kind="success"]{
+  color:#087944;
+  font-weight:800;
+}
+
+.admin-page [data-kind="error"]{
+  color:#c41f27;
+  font-weight:800;
+}
+
+@media(max-width:700px){
+  .admin-app-header{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .table-action-buttons{
+    flex-wrap:wrap;
+    min-width:150px;
+  }
+
+  .eligibility-badge{
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+}
+
+
+/* ============================================================
+   v13 管理者権限管理
+   ============================================================ */
+.admin-summary{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+
+.admin-role-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:88px;
+  padding:5px 9px;
+  border-radius:999px;
+  font-weight:800;
+  font-size:.78rem;
+}
+
+.admin-role-badge.is-admin{
+  color:#704c00;
+  background:#fff0b8;
+  border:1px solid #f1cb48;
+}
+
+.admin-role-badge.not-admin{
+  color:#51616b;
+  background:#edf2f4;
+  border:1px solid #d8e1e5;
+}
+
+.admin-role-action{
+  background:#7552be;
+}
+
+.admin-role-action:hover{
+  background:#6543ae;
+  filter:none;
+}
+
+.admin-role-action:disabled,
+.table-action-button:disabled{
+  background:#aab5bb;
+  color:#f7f9fa;
+  cursor:not-allowed;
+  box-shadow:none;
+  opacity:.85;
+}
+
+@media(max-width:900px){
+  .admin-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:520px){
+  .admin-summary{
+    grid-template-columns:1fr;
+  }
+}
+
+
+/* Phase 1 rebuild: authentication remains controlled by Phase 0⑦. */
+.app-shell{position:relative;max-width:none;margin:0;padding:0 0 48px;min-height:calc(100vh - 76px)}
+.view-container{max-width:980px;margin:18px auto;padding:0 12px}
+.app-view[hidden]{display:none!important}.view-heading{margin:0 0 14px;padding:0 2px}.view-heading h2{margin:0 0 4px;font-size:1.35rem}.view-heading p{margin:0;color:var(--muted)}
+.menu-open-button{min-width:46px;min-height:42px;font-size:1.35rem}.app-menu{position:fixed;z-index:80;top:0;right:0;width:min(92vw,390px);height:100dvh;background:#fff;box-shadow:-10px 0 34px #0003;display:flex;flex-direction:column;overflow:auto}.app-menu[hidden]{display:none!important}.menu-overlay{position:fixed;z-index:70;inset:0;border:0;border-radius:0;background:#10252d80;padding:0}.menu-overlay[hidden]{display:none!important}.menu-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:24px 24px 18px;border-bottom:1px solid var(--border)}.menu-head h2{margin:0}.menu-head p{margin:4px 0 0;color:#66758a}.menu-close-button{background:transparent;color:#17212b;font-size:1.8rem;padding:0 8px}.menu-nav{display:grid;padding:12px 16px;gap:4px}.menu-item{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:58px;padding:12px 16px;background:#fff;color:#17212b;text-align:left;font-size:1.05rem}.menu-item.active{background:#edf3ff}.menu-item small{color:#9aa5b5;font-size:.75rem}.menu-item.member-locked{color:#aeb5c0;background:#f7f7f7;cursor:default}.admin-preview-panel{margin:14px 16px 0;padding:13px;border:1px solid #bfd5db;border-radius:10px;background:#f3f9fa}.admin-preview-panel label{font-weight:800}.admin-preview-panel p{margin:8px 0 0;font-size:.78rem;color:var(--muted)}.menu-logout{margin:auto 16px max(16px,env(safe-area-inset-bottom));min-height:52px;background:#b72a2d;font-size:1.05rem}.profile-list{margin:0}.profile-list>div{display:grid;grid-template-columns:180px 1fr;padding:12px 0;border-bottom:1px solid var(--border)}.profile-list dt{font-weight:800}.profile-list dd{margin:0;overflow-wrap:anywhere}.phase1-placeholder-grid strong{color:#67757c}
+body.menu-open{overflow:hidden}
+/* Crucial: because menu lives inside main, Phase 0⑦ auth-pending rule hides it with main. */
+@media(max-width:700px){.header-controls{width:auto;margin-left:auto}.eligibility-badge,.signed-in-user,.admin-link{display:none!important}.app-header{flex-wrap:nowrap}.profile-list>div{grid-template-columns:1fr;gap:3px}.menu-head{padding-top:max(20px,env(safe-area-inset-top))}}
+
+/* Phase 2: 利用者基本設定 */
+.profile-card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}.profile-card-title h2{margin:0}.phase2-editor label small{display:block;margin-top:5px;font-size:.75rem;font-weight:400;color:var(--muted)}.phase2-message{min-height:1.5em;margin-top:12px;font-size:.9rem;font-weight:700}.phase2-message[data-kind="success"]{color:#176b45}.phase2-message[data-kind="error"]{color:var(--danger)}.phase2-message[data-kind="info"]{color:var(--primary2)}.phase2-editor button:disabled{opacity:.6;cursor:wait}@media(max-width:700px){.profile-card-title{align-items:stretch;flex-direction:column}.profile-card-title button{width:100%}}
+
+/* Phase 3: 個人設定 */
+.phase3-settings-card .form-grid { align-items: end; }
+.phase3-balance { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin:1rem 0; padding:1rem; border-radius:12px; background:var(--surface-subtle, #f5f7fa); }
+.phase3-balance strong { font-size:1.35rem; }
+.phase3-history-row { display:flex; justify-content:space-between; gap:1rem; padding:.75rem 0; border-bottom:1px solid rgba(0,0,0,.08); }
+.button-like { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:.65rem 1rem; border-radius:10px; cursor:pointer; font-weight:700; }
+.phase2-message[data-kind="success"] { color:#146c43; }
+.phase2-message[data-kind="error"] { color:#b42318; }
+@media (max-width: 640px) { .phase3-settings-card .form-grid { grid-template-columns:1fr; } .phase3-balance { align-items:flex-start; } }
+
+/* Phase 4: 組合員向け売上目標管理 */
+.sales-target-settings{margin:1rem 0 1.25rem;padding:1rem;border:1px solid var(--border,#d9dee7);border-radius:12px;background:var(--surface-subtle,#f8fafc)}
+.sales-target-settings .form-grid{align-items:end}
+.sales-target-settings .actions{margin-top:.75rem}
+.union-dashboard .summary-grid strong{overflow-wrap:anywhere}
+@media (max-width:640px){.sales-target-settings{padding:.85rem}.union-dashboard .summary-grid{grid-template-columns:1fr}}
+
+/* Phase 4: 控除額設定・給与計算精度向上 */
+.phase4-card fieldset{margin:1rem 0;padding:1rem;border:1px solid var(--border,#d9dee7);border-radius:12px}.phase4-card legend{padding:0 .45rem;font-weight:900}.phase4-month-label{display:block;max-width:280px}.phase4-other-row{display:grid;grid-template-columns:2fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:.75rem}.phase4-preview{margin:.75rem 0;padding:.85rem 1rem;border-radius:10px;background:#f3f7fa;font-weight:800}.phase4-payment-row{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--border,#d9dee7)}.phase4-payment-row div{display:grid;gap:.25rem}.phase4-payment-row span{color:var(--muted)}
+@media(max-width:640px){.phase4-other-row{grid-template-columns:1fr}.phase4-payment-row{align-items:flex-start;flex-direction:column}.phase4-payment-row button{width:100%}}
+
+
+/* Phase 7: 画面最適化（UI・UX改善） */
+.phase7-accordion { padding: 0; overflow: clip; }
+.phase7-accordion > summary,
+.phase7-subaccordion > summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; font-weight: 700;
+}
+.phase7-accordion > summary { padding: 18px 20px; font-size: 1.08rem; }
+.phase7-accordion > summary::-webkit-details-marker,
+.phase7-subaccordion > summary::-webkit-details-marker { display: none; }
+.phase7-accordion > summary::after,
+.phase7-subaccordion > summary::after { content: '＋'; font-size: 1.35rem; line-height: 1; }
+.phase7-accordion[open] > summary::after,
+.phase7-subaccordion[open] > summary::after { content: '−'; }
+.phase7-summary-title { display: block; }
+.phase7-summary-note { margin-left: auto; color: var(--muted, #64748b); font-weight: 400; font-size: .82rem; }
+.phase7-accordion-body { padding: 0 20px 20px; border-top: 1px solid rgba(15,76,92,.12); }
+.phase7-subaccordion { border: 1px solid rgba(15,76,92,.18); border-radius: 12px; margin: 12px 0; background: #fff; }
+.phase7-subaccordion > summary { padding: 14px 16px; }
+.phase7-subaccordion > summary small { color: #64748b; font-weight: 400; margin-left: auto; }
+.phase7-subaccordion-body { padding: 4px 16px 16px; border-top: 1px solid rgba(15,76,92,.1); }
+.phase7-subaccordion-body > label { display: block; margin-top: 12px; }
+
+.admin-user-stage { border-radius: 16px; padding: 20px; margin: 24px 0; border: 2px solid transparent; }
+.admin-user-stage-pending { background: #fff9eb; border-color: #e7b84b; }
+.admin-user-stage-registered { background: #eef8f5; border-color: #4d9f89; }
+.admin-user-stage > h2 { margin-top: 0; }
+.admin-list-tools { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(2,minmax(140px,1fr)); gap: 12px; align-items: end; margin: 16px 0; }
+.admin-list-tools label { display: grid; gap: 6px; font-weight: 700; }
+.admin-visible-count { margin: 0; align-self: center; font-weight: 700; color: #475569; }
+tr[hidden] { display: none !important; }
+
+@media (max-width: 720px) {
+  .phase7-accordion > summary { padding: 15px 16px; align-items: flex-start; flex-wrap: wrap; }
+  .phase7-summary-note { width: calc(100% - 28px); margin-left: 0; }
+  .phase7-accordion-body { padding: 0 14px 16px; }
+  .phase7-subaccordion > summary { align-items: flex-start; flex-wrap: wrap; }
+  .phase7-subaccordion > summary small { width: calc(100% - 28px); margin-left: 0; }
+  .admin-list-tools { grid-template-columns: 1fr; }
+  .admin-user-stage { padding: 14px; }
+}
+
+/* Phase7 r2: system announcement and mobile admin navigation */
+.system-announcement{margin:12px auto;padding:13px 16px;border:1px solid #c78a00;border-radius:10px;background:#fff7dd;color:#5c4100;font-weight:700;white-space:pre-wrap;overflow-wrap:anywhere}
+.auth-announcement{max-width:620px;margin:0 0 14px}
+.app-announcement{width:min(1180px,calc(100% - 28px));margin-top:12px}
+.system-announcement[data-block-login="true"]{border-color:#b72a2d;background:#fff0f0;color:#7a171a}
+.admin-menu-link{text-decoration:none}
+.admin-announcement-status{margin-top:12px;padding:12px;border-radius:9px;background:#f4f7fa;border:1px solid #d9e0e7}
+.admin-announcement-preview{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:700px){.admin-menu-link{display:flex}.admin-page .admin-app-header{align-items:flex-start}.admin-page .header-controls{display:flex;flex-wrap:wrap;gap:8px}.admin-page .admin-link{display:inline-flex!important}}
+
+/* Phase7 r3: announcement management priorities */
+.system-announcement[data-priority="important"],.admin-announcement-preview[data-priority="important"]{border-color:#b72a2d;background:#fff0f0;color:#7a171a}
+.system-announcement[data-priority="notice"],.admin-announcement-preview[data-priority="notice"]{border-color:#c78a00;background:#fff7dd;color:#5c4100}
+.system-announcement[data-priority="info"],.admin-announcement-preview[data-priority="info"]{border-color:#2d6f9f;background:#eef7ff;color:#174d73}
+.system-announcement[data-block-login="true"]{border-width:2px}
+.system-announcement-admin select{width:100%;min-height:42px}
+
+/* Phase7 r4: PC/mobile feature parity and independent announcement management */
+.admin-header-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.announcement-management-main{width:min(920px,calc(100% - 28px));margin:24px auto 48px}
+.announcement-management-card{margin:0}
+.announcement-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.announcement-form label{display:flex;flex-direction:column;gap:6px}
+.announcement-form .announcement-message-field,.announcement-form .checkbox-row,.announcement-form .admin-form-actions{grid-column:1/-1}
+.announcement-form .checkbox-row{display:flex;flex-direction:row;align-items:center}
+.admin-announcement-preview{margin-top:14px;padding:14px;border:1px solid #d7e0e7;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:700px){
+  .announcement-management-main{width:min(100% - 18px,920px);margin:12px auto 32px}
+  .announcement-form{grid-template-columns:1fr}
+  .announcement-form .announcement-message-field,.announcement-form .checkbox-row,.announcement-form .admin-form-actions{grid-column:1}
+  .admin-header-links{width:100%}
+  .admin-header-links .admin-link,.admin-header-links button{flex:1 1 auto;justify-content:center}
+}
+
+/* Phase7 r5: mobile checkbox readability in announcement management */
+.announcement-form .checkbox-row{
+  display:grid;
+  grid-template-columns:24px minmax(0,1fr);
+  align-items:start;
+  column-gap:10px;
+  row-gap:0;
+  width:100%;
+  line-height:1.55;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.announcement-form .checkbox-row input[type="checkbox"]{
+  width:22px;
+  height:22px;
+  min-width:22px;
+  margin:2px 0 0;
+  padding:0;
+  justify-self:start;
+}
+@media(max-width:700px){
+  .announcement-form .checkbox-row{
+    grid-template-columns:26px minmax(0,1fr);
+    column-gap:12px;
+    padding:10px 0;
+    font-size:.95rem;
+  }
+  .announcement-form .checkbox-row input[type="checkbox"]{
+    width:24px;
+    height:24px;
+    min-width:24px;
+  }
+}
