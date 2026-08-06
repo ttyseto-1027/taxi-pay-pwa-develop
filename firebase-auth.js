@@ -21,13 +21,14 @@ import {
   collection,
   getDocs,
   query,
-  where
+  where,
+  deleteDoc
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 const DIAG_KEY = 'taxiPayAuthDiagnosticV17';
 const ATTEMPT_KEY = 'taxiPayAuthAttemptV1';
 const MAX_STEPS = 120;
-const DIAGNOSTIC_BUILD = 'phase7-r7-safari-popup-timing-fix';
+const DIAGNOSTIC_BUILD = 'phase7.5-operations-foundation-20260806-01';
 
 function safeStorageGet() {
   try { return JSON.parse(localStorage.getItem(DIAG_KEY) || '{}'); } catch { return {}; }
@@ -656,6 +657,31 @@ export async function initializeTaxiPayAuth(){
 
     return routingPromise;
   }
+
+  function getDeviceId(){
+    const key='taxiPayDeviceIdV1';
+    try{let id=localStorage.getItem(key);if(!id){id=(crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`);localStorage.setItem(key,id);}return id;}catch{return `temporary-${Date.now()}`;}
+  }
+  function deviceInfo(){
+    const ua=navigator.userAgent||'';
+    const os=/Android/i.test(ua)?'Android':/iPad|iPhone|iPod/i.test(ua)?'iOS':/Windows/i.test(ua)?'Windows':/Macintosh|Mac OS X/i.test(ua)?'macOS':'その他';
+    const browser=/CriOS|Chrome/i.test(ua)?'Chrome':/Safari/i.test(ua)?'Safari':/Firefox/i.test(ua)?'Firefox':'その他';
+    const meta=window.TAXI_PAY_APP_META||{};
+    return {deviceId:getDeviceId(),os,browser,userAgent:ua,launchMode:(matchMedia('(display-mode: standalone)').matches||navigator.standalone===true)?'pwa':'browser',screenWidth:window.screen?.width||0,screenHeight:window.screen?.height||0,viewportWidth:innerWidth,viewportHeight:innerHeight,appVersion:meta.version||'',build:meta.build||'',environment:meta.environment||'',lastSeenAtJst:new Date().toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'}),lastSeenAt:serverTimestamp()};
+  }
+  async function recordDeviceAndHistory(user,result='success',errorCode=''){
+    if(!user?.uid)return;
+    const info=deviceInfo();
+    await setDoc(doc(db,'users',user.uid,'devices',info.deviceId),info,{merge:true});
+    const historyId=`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+    await setDoc(doc(db,'users',user.uid,'loginHistory',historyId),{...info,result,errorCode,occurredAtJst:new Date().toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'}),occurredAt:serverTimestamp()});
+    const now=Date.now(), deviceLimit=180*86400000, historyLimit=60*86400000;
+    for(const [name,limitMs] of [['devices',deviceLimit],['loginHistory',historyLimit]]){
+      const snap=await getDocs(collection(db,'users',user.uid,name));
+      await Promise.all(snap.docs.filter(d=>{const x=d.data();const ts=x.lastSeenAt?.toMillis?.()||x.occurredAt?.toMillis?.()||0;return ts&&now-ts>limitMs;}).map(d=>deleteDoc(d.ref)));
+    }
+  }
+
   async function route(user){
     setMessage('利用者情報を確認しています…','info');
     diag.step('AUTH-STATE-SIGNED-IN','Google認証に成功しました。','success');
@@ -677,6 +703,7 @@ export async function initializeTaxiPayAuth(){
       );
     }
 
+    try{await recordDeviceAndHistory(user,'success','');}catch(e){diag.step('AUTH-DEVICE-RECORD-WARN','利用端末・ログイン履歴を保存できませんでした。','warning',e?.message||e);}
     diag.step('AUTH-COMPLETE-001','ログインが完了しました。','success');
     clearAttempt();
     D.notify('ログインしました。','success','AUTH-SIGNIN-OK');

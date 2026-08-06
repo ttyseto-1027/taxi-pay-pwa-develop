@@ -5,10 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="theme-color" content="#0f4c5c"/>
 <title>お知らせ管理 | タクシー給与シミュレーター</title>
-<link href="styles.css?v=20260805-phase7-r6" rel="stylesheet"/>
+<link href="styles.css?v=20260806-phase75" rel="stylesheet"/>
 </head>
-<body class="admin-page auth-pending">
-<section class="auth-gate" id="announcementAuthGate">
+<body class="admin-page auth-checking">
+<section class="auth-checking-panel" id="authCheckingPanel" role="status" aria-live="polite">
+<div class="auth-card auth-checking-card">
+<h1>お知らせ管理</h1>
+<p>ログイン状態を確認しています…</p>
+</div>
+</section>
+<section class="auth-gate" id="announcementAuthGate" hidden>
 <div class="auth-card">
 <h1>お知らせ管理</h1>
 <p id="announcementAuthMessage">管理者のGoogleアカウントでログインしてください。</p>
@@ -19,10 +25,10 @@
 <header class="app-header admin-app-header">
 <div>
 <h1 class="admin-page-title"><span aria-hidden="true">📢</span> お知らせ管理</h1>
-<p>Version 1.4β / Phase 7 管理画面</p>
+<p><span data-app-version></span></p>
 </div>
 <div class="header-controls admin-header-links">
-<a class="ghost admin-link" href="admin.html">ユーザー管理</a>
+<a class="ghost admin-link" href="admin.html">ユーザー管理</a><a class="ghost admin-link" href="system-info.html">システム情報</a>
 <a class="ghost admin-link" href="index.html">アプリへ戻る</a>
 <button class="ghost" id="announcementLogout" type="button">ログアウト</button>
 </div>
@@ -45,7 +51,7 @@
 <div class="admin-announcement-preview" hidden id="systemAnnouncementPreview"></div>
 </section>
 </main>
-<script src="firebase-config.js?v=20260805-phase7-r6"></script>
-<script type="module" src="announcement-admin.js?v=20260805-phase7-r6"></script>
+<script src="app-meta.js?v=20260806-phase75"></script><script src="phase75-ops.js?v=20260806-phase75"></script><script src="firebase-config.js?v=20260806-phase7-r8"></script>
+<script type="module" src="announcement-admin.js?v=20260806-phase7-r8"></script>
 </body>
 </html>

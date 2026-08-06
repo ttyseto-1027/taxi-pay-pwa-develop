@@ -28,6 +28,7 @@ import {
 const config = window.TAXI_PAY_FIREBASE_CONFIG || {};
 
 const gate = document.getElementById('adminAuthGate');
+const checkingPanel = document.getElementById('authCheckingPanel');
 const message = document.getElementById('adminMessage');
 const usersBody = document.getElementById('usersBody');
 const allowlistBody = document.getElementById('allowlistBody');
@@ -112,13 +113,16 @@ function errorText(error, fallback) {
 }
 
 function showGate(text = '管理者のGoogleアカウントでログインしてください。') {
+  document.body.classList.remove('auth-checking');
   document.body.classList.add('auth-pending');
+  if (checkingPanel) checkingPanel.hidden = true;
   gate.hidden = false;
   setStatus(message, text, text.includes('してください') ? 'info' : 'error');
 }
 
 function showPage() {
-  document.body.classList.remove('auth-pending');
+  document.body.classList.remove('auth-checking', 'auth-pending');
+  if (checkingPanel) checkingPanel.hidden = true;
   gate.hidden = true;
   setStatus(message);
 }
@@ -669,7 +673,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
         row.dataset.userRole = hasAdminRole ? 'admin' : 'user';
 
         row.innerHTML = `
-          <td>${escapeHtml(user.name || user.displayName || '—')}</td>
+          <td><button class="user-name-link" type="button" data-user-action="detail" data-user-id="${escapeHtml(user.id)}" data-user-email="${escapeHtml(user.email || '')}" data-user-name="${escapeHtml(user.name || user.displayName || '')}">${escapeHtml(user.name || user.displayName || '—')}</button></td>
           <td>${escapeHtml(user.email || '—')}</td>
           <td>${escapeHtml(user.plan || '—')}</td>
           <td>${user.status === 'active' ? '利用中' : '利用停止'}</td>
@@ -737,6 +741,23 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
     }
   }
 
+
+  const userDetailDialog=document.getElementById('userDetailDialog');
+  document.getElementById('closeUserDetail')?.addEventListener('click',()=>userDetailDialog?.close());
+  async function openUserDetail(userId,userName,userEmail){
+    const content=document.getElementById('userDetailContent');
+    document.getElementById('userDetailTitle').textContent=`ユーザー詳細：${userName||userEmail||userId}`;
+    content.innerHTML='<p>読み込み中…</p>'; userDetailDialog.showModal();
+    try{
+      const [userSnap,devicesSnap,historySnap]=await Promise.all([getDoc(doc(db,'users',userId)),getDocs(collection(db,'users',userId,'devices')),getDocs(collection(db,'users',userId,'loginHistory'))]);
+      const u=userSnap.exists()?userSnap.data():{};
+      const devices=devicesSnap.docs.map(d=>d.data()).sort((a,b)=>(b.lastSeenAt?.toMillis?.()||0)-(a.lastSeenAt?.toMillis?.()||0));
+      const history=historySnap.docs.map(d=>d.data()).sort((a,b)=>(b.occurredAt?.toMillis?.()||0)-(a.occurredAt?.toMillis?.()||0)).slice(0,100);
+      const basic=[['氏名',u.name||u.displayName||userName||'—'],['Googleアカウント',u.email||userEmail||'—'],['乗務員番号',u.driverNumber||'—'],['営業所',u.office||'—'],['勤務形態',u.shiftType||'—'],['組合員区分',u.unionStatus||'—'],['利用状態',u.status||'—'],['登録日',formatTimestamp(u.createdAt)],['最終更新',formatTimestamp(u.updatedAt||u.lastLoginAt)]];
+      content.innerHTML=`<details open><summary>基本情報</summary><dl class="profile-list">${basic.map(([k,v])=>`<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join('')}</dl></details><details open><summary>利用端末（${devices.length}台）</summary>${devices.length?devices.map((d,i)=>`<div class="device-detail-card"><strong>${i+1}. ${escapeHtml(d.os||'—')} / ${escapeHtml(d.browser||'—')}</strong><p>起動方式：${escapeHtml(d.launchMode||'—')}｜画面：${escapeHtml(`${d.screenWidth||0}×${d.screenHeight||0}`)}</p><p>Version ${escapeHtml(d.appVersion||'—')}｜Build ${escapeHtml(d.build||'—')}｜${escapeHtml(d.environment||'—')}</p><p>最終利用：${escapeHtml(d.lastSeenAtJst||formatTimestamp(d.lastSeenAt))}</p></div>`).join(''):'<p>端末情報はまだありません。</p>'}</details><details open><summary>ログイン履歴（直近60日）</summary>${history.length?`<div class="table-wrap"><table><thead><tr><th>日時</th><th>端末</th><th>結果</th><th>Build</th><th>エラー</th></tr></thead><tbody>${history.map(h=>`<tr><td>${escapeHtml(h.occurredAtJst||formatTimestamp(h.occurredAt))}</td><td>${escapeHtml(`${h.os||'—'} / ${h.browser||'—'}`)}</td><td>${h.result==='success'?'成功':'失敗'}</td><td>${escapeHtml(h.build||'—')}</td><td>${escapeHtml(h.errorCode||'—')}</td></tr>`).join('')}</tbody></table></div>`:'<p>履歴はまだありません。</p>'}</details><details><summary>監査ログ（将来対応）</summary><p>勤務実績や設定変更の監査ログは将来追加します。</p></details>`;
+    }catch(e){content.innerHTML=`<p class="error-text">詳細を読み込めませんでした：${escapeHtml(e.message||e)}</p>`;}
+  }
+
   usersBody.addEventListener('click', async (event) => {
     const button = event.target.closest('button[data-user-id]');
     if (!button) return;
@@ -745,6 +766,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
     const userEmail = (button.dataset.userEmail || '').trim().toLowerCase();
     const userName = button.dataset.userName || userEmail || userId;
     const actionType = button.dataset.userAction || 'toggle';
+    if(actionType==='detail'){await openUserDetail(userId,userName,userEmail);return;}
 
     if (actionType === 'grant-admin' || actionType === 'revoke-admin') {
       const granting = actionType === 'grant-admin';

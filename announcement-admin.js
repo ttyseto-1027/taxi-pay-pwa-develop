@@ -20,6 +20,7 @@ import {
 
 const config = window.TAXI_PAY_FIREBASE_CONFIG || {};
 const gate = document.getElementById('announcementAuthGate');
+const checkingPanel = document.getElementById('authCheckingPanel');
 const message = document.getElementById('announcementAuthMessage');
 let currentAdminUid = '';
 let currentAdminEmail = '';
@@ -35,12 +36,15 @@ function errorText(error, fallback) {
   return `${error?.message || fallback}${code}`;
 }
 function showGate(text = '管理者のGoogleアカウントでログインしてください。') {
+  document.body.classList.remove('auth-checking');
   document.body.classList.add('auth-pending');
+  if (checkingPanel) checkingPanel.hidden = true;
   if (gate) gate.hidden = false;
   setStatus(text, text.includes('してください') ? 'info' : 'error');
 }
 function showPage() {
-  document.body.classList.remove('auth-pending');
+  document.body.classList.remove('auth-checking', 'auth-pending');
+  if (checkingPanel) checkingPanel.hidden = true;
   if (gate) gate.hidden = true;
   setStatus('');
 }

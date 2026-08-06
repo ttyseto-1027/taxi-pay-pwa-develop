@@ -15,3 +15,5 @@
     });
   });
 })();
+
+window.addEventListener('taxipay:profile',(event)=>{const el=document.getElementById('systemInfoMenuLink');if(el)el.hidden=event.detail?.isAdmin!==true;});

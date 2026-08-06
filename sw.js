@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260806-phase7-r7';
+const CACHE = 'taxi-pay-v1.4-beta-20260806-01-phase75';
 
 const FILES = [
   './',
@@ -20,7 +20,12 @@ const FILES = [
   './admin.html',
   './announcement.html',
   './announcement-admin.js',
-  './admin.js'
+  './admin.js',
+  './system-info.js',
+  './system-info.html',
+  './phase75-ops.js',
+  './app-meta.json',
+  './app-meta.js'
 ];
 
 self.addEventListener('install', (event) => {

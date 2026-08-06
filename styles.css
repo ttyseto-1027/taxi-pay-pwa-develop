@@ -52,6 +52,19 @@
 
 
 /* Firebase Authentication / user management */
+
+/* Phase7 r8: 管理画面の認証状態確認中にログイン画面を一瞬表示しない */
+.auth-checking > .auth-gate,
+.auth-checking > .app-header,
+.auth-checking > main,
+.auth-checking > dialog { display:none !important; }
+.auth-checking-panel{
+  width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:linear-gradient(145deg,#e8f3f5,#f7fafb)
+}
+.auth-checking-panel[hidden]{display:none!important}
+.auth-checking-card p{margin:0;color:#52636b}
+
 .auth-pending > .app-header,
 .auth-pending > main,
 .auth-pending > dialog { display:none !important; }
@@ -500,3 +513,12 @@ tr[hidden] { display: none !important; }
     min-width:24px;
   }
 }
+
+/* Phase7.5 運用基盤 */
+.app-version-line{margin:.2rem 0 .35rem;font-size:.78rem;line-height:1.35;opacity:.82;font-weight:600;overflow-wrap:anywhere}
+.auth-recovery-link{display:block;width:100%;margin:.55rem 0 0;padding:.45rem .7rem;border:0;background:transparent;color:#0f4c5c;text-decoration:underline;font-size:.88rem;cursor:pointer}
+.app-update-notice{margin:.65rem auto;padding:.8rem 1rem;border:2px solid #d97706;border-radius:.75rem;background:#fff7ed;display:flex;gap:.55rem;align-items:center;flex-wrap:wrap;max-width:920px}
+.app-update-notice strong{color:#9a3412}.app-update-notice button{margin-left:auto}
+.user-name-link{border:0;background:transparent;color:#075985;text-decoration:underline;font:inherit;font-weight:700;padding:0;cursor:pointer;text-align:left}
+.user-detail-dialog{width:min(920px,94vw);max-height:88vh;overflow:auto}.user-detail-dialog details{margin:.8rem 0;border:1px solid #d6dde0;border-radius:.65rem;padding:.65rem}.device-detail-card{border:1px solid #d6dde0;border-radius:.6rem;padding:.7rem;margin:.55rem 0}.device-detail-card p{margin:.25rem 0}.system-cache-list code{overflow-wrap:anywhere}.error-text{color:#b42318}
+@media(max-width:700px){.app-version-line{font-size:.72rem}.app-update-notice{margin:.5rem .65rem;display:block}.app-update-notice span,.app-update-notice button{display:block;margin:.45rem 0 0;width:100%}.user-detail-dialog{width:96vw;padding:.8rem}.user-detail-dialog .table-wrap{overflow:auto}}
