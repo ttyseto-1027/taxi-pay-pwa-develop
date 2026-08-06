@@ -1,8 +1,8 @@
 # Phase7.5 運用基盤完成版
 
 - Version: 1.4β
-- Build: 20260806-01
-- Cache: taxi-pay-v1.4-beta-20260806-01-phase75
+- Build: 20260806-02
+- Cache: taxi-pay-v1.4-beta-20260806-02-phase75
 - Environment: URLからDEVELOP / PRODUCTIONを自動判定
 - JST基準
 

@@ -747,7 +747,8 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
   async function openUserDetail(userId,userName,userEmail){
     const content=document.getElementById('userDetailContent');
     document.getElementById('userDetailTitle').textContent=`ユーザー詳細：${userName||userEmail||userId}`;
-    content.innerHTML='<p>読み込み中…</p>'; userDetailDialog.showModal();
+    content.innerHTML='<p>詳細情報を取得しています…</p>';
+    if (typeof userDetailDialog?.showModal === 'function') userDetailDialog.showModal();
     try{
       const [userSnap,devicesSnap,historySnap]=await Promise.all([getDoc(doc(db,'users',userId)),getDocs(collection(db,'users',userId,'devices')),getDocs(collection(db,'users',userId,'loginHistory'))]);
       const u=userSnap.exists()?userSnap.data():{};
@@ -755,7 +756,14 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
       const history=historySnap.docs.map(d=>d.data()).sort((a,b)=>(b.occurredAt?.toMillis?.()||0)-(a.occurredAt?.toMillis?.()||0)).slice(0,100);
       const basic=[['氏名',u.name||u.displayName||userName||'—'],['Googleアカウント',u.email||userEmail||'—'],['乗務員番号',u.driverNumber||'—'],['営業所',u.office||'—'],['勤務形態',u.shiftType||'—'],['組合員区分',u.unionStatus||'—'],['利用状態',u.status||'—'],['登録日',formatTimestamp(u.createdAt)],['最終更新',formatTimestamp(u.updatedAt||u.lastLoginAt)]];
       content.innerHTML=`<details open><summary>基本情報</summary><dl class="profile-list">${basic.map(([k,v])=>`<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join('')}</dl></details><details open><summary>利用端末（${devices.length}台）</summary>${devices.length?devices.map((d,i)=>`<div class="device-detail-card"><strong>${i+1}. ${escapeHtml(d.os||'—')} / ${escapeHtml(d.browser||'—')}</strong><p>起動方式：${escapeHtml(d.launchMode||'—')}｜画面：${escapeHtml(`${d.screenWidth||0}×${d.screenHeight||0}`)}</p><p>Version ${escapeHtml(d.appVersion||'—')}｜Build ${escapeHtml(d.build||'—')}｜${escapeHtml(d.environment||'—')}</p><p>最終利用：${escapeHtml(d.lastSeenAtJst||formatTimestamp(d.lastSeenAt))}</p></div>`).join(''):'<p>端末情報はまだありません。</p>'}</details><details open><summary>ログイン履歴（直近60日）</summary>${history.length?`<div class="table-wrap"><table><thead><tr><th>日時</th><th>端末</th><th>結果</th><th>Build</th><th>エラー</th></tr></thead><tbody>${history.map(h=>`<tr><td>${escapeHtml(h.occurredAtJst||formatTimestamp(h.occurredAt))}</td><td>${escapeHtml(`${h.os||'—'} / ${h.browser||'—'}`)}</td><td>${h.result==='success'?'成功':'失敗'}</td><td>${escapeHtml(h.build||'—')}</td><td>${escapeHtml(h.errorCode||'—')}</td></tr>`).join('')}</tbody></table></div>`:'<p>履歴はまだありません。</p>'}</details><details><summary>監査ログ（将来対応）</summary><p>勤務実績や設定変更の監査ログは将来追加します。</p></details>`;
-    }catch(e){content.innerHTML=`<p class="error-text">詳細を読み込めませんでした：${escapeHtml(e.message||e)}</p>`;}
+    } catch (error) {
+      console.error('[UserDetail] Failed to load user detail', error);
+      const permissionDenied = error?.code === 'permission-denied' ||
+        String(error?.message || '').includes('Missing or insufficient permissions');
+      content.innerHTML = permissionDenied
+        ? `<div class="admin-detail-error"><p class="error-text">ユーザー詳細を取得できませんでした。</p><p>管理者向けFirestoreルールがまだ反映されていない可能性があります。FirebaseコンソールのFirestoreルールを更新してください。</p></div>`
+        : `<div class="admin-detail-error"><p class="error-text">ユーザー詳細を取得できませんでした。</p><p>通信状態を確認して、もう一度お試しください。</p></div>`;
+    }
   }
 
   usersBody.addEventListener('click', async (event) => {

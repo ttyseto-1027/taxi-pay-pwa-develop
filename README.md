@@ -25,5 +25,5 @@
 GitHub Pagesへ静的ファイルをアップロードして公開できます。Firebase Authenticationの承認済みドメインへGitHub Pagesのホスト名を追加してください。
 
 
-## Phase7.5 (20260806-01)
+## Phase7.5 (20260806-02)
 運用基盤完成版を追加。
