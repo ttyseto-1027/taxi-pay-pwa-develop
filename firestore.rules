@@ -1,66 +1,432 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    /*
+     * 共通関数
+     */
+
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null
+        && request.auth.token.email != null;
+    }
+
+    function email() {
+      return request.auth.token.email;
     }
 
     function isAdmin() {
       return signedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled != false;
+        && exists(
+          /databases/$(database)/documents/admins/$(request.auth.uid)
+        )
+        && get(
+          /databases/$(database)/documents/admins/$(request.auth.uid)
+        ).data.enabled != false;
     }
 
-    // 管理者登録は本人が自分の登録有無を確認可能。変更は管理者のみ。
+    function allowlistExists() {
+      return signedIn()
+        && exists(
+          /databases/$(database)/documents/betaAllowlist/$(email())
+        );
+    }
+
+    function allowDoc() {
+      return get(
+        /databases/$(database)/documents/betaAllowlist/$(email())
+      );
+    }
+
+    function isAllowlisted() {
+      return allowlistExists()
+        && allowDoc().data.enabled == true;
+    }
+
+    function isRegistered() {
+      return isAllowlisted()
+        && allowDoc().data.registeredUid == request.auth.uid;
+    }
+
+
+    /*
+     * 管理者
+     */
+
     match /admins/{uid} {
-      allow read: if signedIn() && request.auth.uid == uid;
-      allow write: if isAdmin();
+
+      // 自分が管理者として登録されているか確認
+      allow get: if signedIn()
+        && uid == request.auth.uid;
+
+      // 管理者一覧の操作は管理者のみ
+      allow list, create, update, delete: if isAdmin();
     }
 
-    match /betaAllowlist/{email} {
-      allow read: if signedIn() && request.auth.token.email == email;
-      allow read, write: if isAdmin();
+
+    /*
+     * β版利用許可リスト
+     *
+     * ドキュメントID：
+     * Googleアカウントのメールアドレス
+     */
+
+    match /betaAllowlist/{emailAddress} {
+
+      // 本人または管理者だけが取得可能
+      allow get: if signedIn()
+        && (
+          emailAddress == email()
+          || isAdmin()
+        );
+
+      // 一覧取得、登録、削除は管理者のみ
+      allow list, create, delete: if isAdmin();
+
+      /*
+       * 更新
+       *
+       * 管理者：
+       * 全項目を更新可能
+       *
+       * 一般利用者：
+       * 初回ログイン時の登録情報だけを更新可能
+       */
+      allow update: if isAdmin()
+
+        // 現在のv11に対応
+        // registeredUid・registeredAtの2項目を更新
+        || (
+          signedIn()
+          && emailAddress == email()
+          && resource.data.enabled == true
+          && resource.data.registeredUid == null
+
+          && request.resource.data
+            .diff(resource.data)
+            .affectedKeys()
+            .hasOnly([
+              'registeredUid',
+              'registeredAt'
+            ])
+
+          && request.resource.data.registeredUid
+            == request.auth.uid
+        )
+
+        // invitationUsedも同時に更新する将来版に対応
+        || (
+          signedIn()
+          && emailAddress == email()
+          && resource.data.enabled == true
+          && resource.data.invitationUsed == false
+          && resource.data.registeredUid == null
+
+          && request.resource.data
+            .diff(resource.data)
+            .affectedKeys()
+            .hasOnly([
+              'invitationUsed',
+              'registeredUid',
+              'registeredAt'
+            ])
+
+          && request.resource.data.invitationUsed == true
+          && request.resource.data.registeredUid
+            == request.auth.uid
+        );
     }
 
-    // 本人は自分の情報のみ。管理者はユーザー管理のため全利用者を閲覧可能。
+
+    /*
+     * アクセスコード
+     */
+
+    match /accessCodes/{codeHash} {
+
+      // 許可済み利用者または管理者が取得可能
+      allow get: if isAllowlisted()
+        || isAdmin();
+
+      // 一覧取得、作成、削除は管理者のみ
+      allow list, create, delete: if isAdmin();
+
+      /*
+       * 管理者以外は、使用回数の加算に必要な項目だけ更新可能
+       */
+      allow update: if isAdmin()
+        || (
+          isAllowlisted()
+
+          && resource.data.active == true
+          && resource.data.usageCount is int
+          && resource.data.maxUses is int
+
+          && request.resource.data.usageCount
+            == resource.data.usageCount + 1
+
+          && request.resource.data.usageCount
+            <= resource.data.maxUses
+
+          && request.resource.data
+            .diff(resource.data)
+            .affectedKeys()
+            .hasOnly([
+              'usageCount',
+              'lastUsedAt',
+              'lastUsedBy'
+            ])
+
+          && request.resource.data.lastUsedBy
+            == request.auth.uid
+        );
+    }
+
+
+    /*
+     * 利用者情報
+     */
+
     match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create: if signedIn() && request.auth.uid == uid;
-      allow update: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // 本人または管理者が取得可能
+      allow get: if signedIn()
+        && (
+          uid == request.auth.uid
+          || isAdmin()
+        );
+
+      // 一覧取得は管理者のみ
+      allow list: if isAdmin();
+
+      /*
+       * 初回ログイン時の利用者情報作成
+       *
+       * v1.3βの値に合わせる
+       */
+      allow create: if isAllowlisted()
+
+        && uid == request.auth.uid
+
+        && request.resource.data.email
+          == email()
+
+        && request.resource.data.status
+          == 'active'
+
+        && request.resource.data.plan
+          == 'beta_v1_3'
+
+        && request.resource.data.authProvider
+          == 'google.com'
+
+        && request.resource.data.version
+          == 'v1.3-beta';
+
+      /*
+       * 管理者：
+       * 全項目を更新可能
+       *
+       * 本人：
+       * 最終ログイン日時とバージョンだけ更新可能
+       */
+      allow update: if isAdmin()
+        || (
+          isAllowlisted()
+
+          && uid == request.auth.uid
+
+          && resource.data.email
+            == email()
+
+          && request.resource.data.email
+            == resource.data.email
+
+          && request.resource.data
+            .diff(resource.data)
+            .affectedKeys()
+            .hasOnly([
+              'lastLoginAt',
+              'lastVersion'
+            ])
+        );
+
+      // 削除は管理者のみ
       allow delete: if isAdmin();
     }
 
-    // 端末情報・ログイン履歴は本人が記録し、管理者だけが他利用者分を閲覧可能。
+
+    /*
+     * Phase7.5 利用端末情報
+     */
+
     match /users/{uid}/devices/{deviceId} {
-      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, update, delete: if signedIn() && request.auth.uid == uid;
+
+      // 本人または管理者が閲覧可能
+      allow get, list: if signedIn()
+        && (
+          uid == request.auth.uid
+          || isAdmin()
+        );
+
+      // 本人の端末情報だけ記録・更新・削除可能
+      allow create, update, delete: if signedIn()
+        && uid == request.auth.uid;
     }
+
+
+    /*
+     * Phase7.5 ログイン履歴
+     */
 
     match /users/{uid}/loginHistory/{historyId} {
-      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, delete: if signedIn() && request.auth.uid == uid;
+
+      // 本人または管理者が閲覧可能
+      allow get, list: if signedIn()
+        && (
+          uid == request.auth.uid
+          || isAdmin()
+        );
+
+      // 本人のログイン履歴だけ作成可能
+      allow create: if signedIn()
+        && uid == request.auth.uid;
+
+      // 保存期間超過データの整理用
+      allow delete: if signedIn()
+        && uid == request.auth.uid;
     }
 
-    match /accessCodes/{id} {
-      allow read, write: if isAdmin();
-    }
+
+    /*
+     * v1.3βログイン成功記録
+     */
 
     match /v13LoginSuccess/{uid} {
-      allow read: if isAdmin();
-      allow create, update: if signedIn() && request.auth.uid == uid;
+
+      // 本人または管理者が取得可能
+      allow get: if signedIn()
+        && (
+          uid == request.auth.uid
+          || isAdmin()
+        );
+
+      /*
+       * 猶予期間開始人数を数えるため、
+       * 許可済み利用者にも一覧取得を認める
+       */
+      allow list: if isAllowlisted()
+        || isAdmin();
+
+      /*
+       * 本人のログイン成功記録だけ作成可能
+       */
+      allow create: if isAllowlisted()
+
+        && uid == request.auth.uid
+
+        && request.resource.data.uid
+          == request.auth.uid
+
+        && request.resource.data.email
+          == email()
+
+        && request.resource.data.isAdmin
+          == false
+
+        && request.resource.data
+          .keys()
+          .hasOnly([
+            'uid',
+            'email',
+            'driverNumber',
+            'firstSuccessAt',
+            'lastSuccessAt',
+            'isAdmin'
+          ]);
+
+      /*
+       * 本人のログイン成功記録だけ更新可能
+       */
+      allow update: if isAllowlisted()
+
+        && uid == request.auth.uid
+
+        && request.resource.data.uid
+          == request.auth.uid
+
+        && request.resource.data.email
+          == email()
+
+        && request.resource.data.isAdmin
+          == false
+
+        && request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'uid',
+            'email',
+            'driverNumber',
+            'firstSuccessAt',
+            'lastSuccessAt',
+            'isAdmin'
+          ]);
+
+      // 削除は管理者のみ
+      allow delete: if isAdmin();
     }
 
-    match /appSettings/systemAnnouncement {
-      allow read: if true;
-      allow create, update: if isAdmin();
+
+    /*
+     * アプリ共通設定
+     */
+
+    match /appSettings/{settingId} {
+
+      // ログイン済み利用者が設定を取得可能
+      allow get: if signedIn();
+
+      // 設定一覧の取得は管理者のみ
+      allow list: if isAdmin();
+
+      /*
+       * v1.3βの猶予期間開始設定
+       *
+       * 許可するドキュメントは
+       * appSettings/v1_3_beta のみ
+       */
+      allow create: if settingId == 'v1_3_beta'
+        && isAllowlisted()
+
+        && request.resource.data
+          .keys()
+          .hasOnly([
+            'gracePeriodStartedAt',
+            'gracePeriodDays',
+            'gracePeriodTriggeredByCount'
+          ])
+
+        && request.resource.data.gracePeriodDays
+          == 14
+
+        && request.resource.data.gracePeriodTriggeredByCount is int
+
+        && request.resource.data.gracePeriodTriggeredByCount
+          >= 3;
+
+      /*
+       * 通常の設定変更は管理者のみ
+       */
+      allow update, delete: if isAdmin();
     }
 
-    match /appSettings/{id} {
-      allow read: if signedIn();
-      allow create, update: if signedIn() && id != 'systemAnnouncement';
-    }
 
-    // 上記以外は明示的に拒否。
+    /*
+     * 上記に定義されていないデータへのアクセスは拒否
+     */
+
     match /{document=**} {
       allow read, write: if false;
     }
