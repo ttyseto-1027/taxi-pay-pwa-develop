@@ -33,10 +33,14 @@
     const ok=confirm('アプリの表示データを更新しますか？\n\n保存済みの勤務実績・控除設定・利用者情報は削除されません。');
     if(!ok) return;
     const btn=document.getElementById('refreshAppCache');
+    const notice=document.getElementById('appUpdateNotice');
     if(btn){btn.disabled=true;btn.textContent='更新しています…';}
+    if(notice){ notice.hidden=true; }
     try{
       await clearAppCaches();
-      const url=new URL(location.href); url.searchParams.set('_refresh',Date.now());
+      const url=new URL(location.href);
+      url.searchParams.set('_refresh',Date.now());
+      url.searchParams.set('_build', String((window.TAXI_PAY_APP_META||{}).build || 'latest'));
       location.replace(url.toString());
     }catch(err){
       alert(`キャッシュを更新できませんでした。\n${err?.message||err}`);
@@ -62,7 +66,10 @@
       const res=await fetch(`app-meta.json?_=${Date.now()}`,{cache:'no-store'});
       if(!res.ok) return;
       const latest=await res.json();
-      if(compareBuild(meta.build,latest.build)>=0) return;
+      if(compareBuild(meta.build,latest.build)>=0){
+        document.getElementById('appUpdateNotice')?.remove();
+        return;
+      }
       const host=document.getElementById('authMessage') || document.querySelector('.app-announcement') || document.body.firstElementChild;
       if(document.getElementById('appUpdateNotice')) return;
       const box=document.createElement('div'); box.id='appUpdateNotice'; box.className='app-update-notice';

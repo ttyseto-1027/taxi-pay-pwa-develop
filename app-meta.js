@@ -3,9 +3,9 @@
   const environment = path.includes('taxi-pay-pwa-develop') ? 'DEVELOP' : 'PRODUCTION';
   window.TAXI_PAY_APP_META = Object.freeze({
     version: '1.4β',
-    build: '20260817-02',
+    build: '20260817-03',
     environment,
-    cacheVersion: 'taxi-pay-v1.4-beta-20260817-02-phase75-unified-users',
-    releasedAtJst: '2026/08/17 21:30 JST'
+    cacheVersion: 'taxi-pay-v1.4-beta-20260817-03-update-notice-fix',
+    releasedAtJst: '2026/08/17 21:40 JST'
   });
 })();
