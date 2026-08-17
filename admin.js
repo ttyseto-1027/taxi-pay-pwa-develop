@@ -33,6 +33,175 @@ const message = document.getElementById('adminMessage');
 const usersBody = document.getElementById('usersBody');
 const allowlistBody = document.getElementById('allowlistBody');
 
+const unifiedUsersBody = document.getElementById('unifiedUsersBody');
+let cachedAllowlistEntries = [];
+let cachedRegisteredUsers = [];
+let cachedAdminMap = new Map();
+let unifiedCurrentPage = 1;
+
+function timestampMillis(value) {
+  try { return value?.toMillis?.() || value?.toDate?.().getTime?.() || 0; } catch { return 0; }
+}
+
+function buildUnifiedUsers() {
+  const allowByUid = new Map();
+  const allowByEmail = new Map();
+  for (const entry of cachedAllowlistEntries) {
+    if (entry.registeredUid) allowByUid.set(String(entry.registeredUid), entry);
+    const key = String(entry.email || entry.id || '').trim().toLowerCase();
+    if (key) allowByEmail.set(key, entry);
+  }
+
+  const registeredByUid = new Map(cachedRegisteredUsers.map((user) => [String(user.id), user]));
+  const registeredByEmail = new Map(cachedRegisteredUsers.map((user) => [String(user.email || '').trim().toLowerCase(), user]));
+  const result = [];
+  const usedUserIds = new Set();
+
+  for (const entry of cachedAllowlistEntries) {
+    const email = String(entry.email || entry.id || '').trim().toLowerCase();
+    const user = (entry.registeredUid && registeredByUid.get(String(entry.registeredUid))) || registeredByEmail.get(email) || null;
+    if (user) usedUserIds.add(String(user.id));
+    const hasAdminRole = Boolean(user && cachedAdminMap.get(String(user.id))?.enabled !== false && cachedAdminMap.has(String(user.id)));
+    const registered = Boolean(user || entry.registeredUid || entry.invitationUsed === true);
+    result.push({
+      key: email || String(entry.id),
+      allowEntry: entry,
+      user,
+      userId: user?.id || entry.registeredUid || '',
+      email: user?.email || entry.email || entry.id || '',
+      name: entry.displayName || user?.appRegisteredName || user?.name || user?.displayName || '—',
+      driverNumber: entry.driverNumber || user?.driverNumber || '—',
+      office: entry.office || user?.office || '—',
+      unionStatus: entry.unionStatus || user?.unionStatus || '',
+      tester: entry.tester !== false,
+      registrationState: registered ? 'registered' : 'pending',
+      status: user ? (user.status === 'active' ? 'active' : 'locked') : (entry.enabled === true ? 'active' : 'locked'),
+      role: hasAdminRole ? 'admin' : 'user',
+      createdAt: user?.createdAt || null,
+      lastLoginAt: user?.lastLoginAt || null
+    });
+  }
+
+  for (const user of cachedRegisteredUsers) {
+    if (usedUserIds.has(String(user.id))) continue;
+    const email = String(user.email || '').trim().toLowerCase();
+    const entry = allowByUid.get(String(user.id)) || allowByEmail.get(email) || null;
+    const hasAdminRole = Boolean(cachedAdminMap.get(String(user.id)) && cachedAdminMap.get(String(user.id)).enabled !== false);
+    result.push({
+      key: user.id,
+      allowEntry: entry,
+      user,
+      userId: user.id,
+      email: user.email || '',
+      name: entry?.displayName || user.appRegisteredName || user.name || user.displayName || '—',
+      driverNumber: entry?.driverNumber || user.driverNumber || '—',
+      office: entry?.office || user.office || '—',
+      unionStatus: entry?.unionStatus || user.unionStatus || '',
+      tester: entry?.tester !== false,
+      registrationState: 'registered',
+      status: user.status === 'active' ? 'active' : 'locked',
+      role: hasAdminRole ? 'admin' : 'user',
+      createdAt: user.createdAt || null,
+      lastLoginAt: user.lastLoginAt || null
+    });
+  }
+  return result;
+}
+
+function compareJa(a, b) {
+  return String(a || '').localeCompare(String(b || ''), 'ja', { numeric: true, sensitivity: 'base' });
+}
+
+function renderUnifiedUserList(resetPage = false) {
+  if (!unifiedUsersBody) return;
+  if (resetPage) unifiedCurrentPage = 1;
+  const search = normalizeSearchText(document.getElementById('unifiedUserSearch')?.value);
+  const registration = document.getElementById('unifiedRegistrationFilter')?.value || '';
+  const status = document.getElementById('unifiedStatusFilter')?.value || '';
+  const role = document.getElementById('unifiedRoleFilter')?.value || '';
+  const sort = document.getElementById('unifiedSort')?.value || 'name-asc';
+  const pageSize = Number(document.getElementById('unifiedPageSize')?.value || 10);
+
+  let rows = buildUnifiedUsers().filter((item) => {
+    const text = normalizeSearchText([item.name, item.email, item.driverNumber, item.office].join(' '));
+    return (!search || text.includes(search))
+      && (!registration || item.registrationState === registration)
+      && (!status || item.status === status)
+      && (!role || item.role === role);
+  });
+
+  rows.sort((a, b) => {
+    switch (sort) {
+      case 'name-desc': return compareJa(b.name, a.name);
+      case 'office-asc': return compareJa(a.office, b.office) || compareJa(a.name, b.name);
+      case 'driver-asc': return compareJa(a.driverNumber, b.driverNumber) || compareJa(a.name, b.name);
+      case 'registration': return compareJa(a.registrationState === 'pending' ? '0' : '1', b.registrationState === 'pending' ? '0' : '1') || compareJa(a.name, b.name);
+      case 'created-desc': return timestampMillis(b.createdAt) - timestampMillis(a.createdAt) || compareJa(a.name, b.name);
+      case 'last-desc': return timestampMillis(b.lastLoginAt) - timestampMillis(a.lastLoginAt) || compareJa(a.name, b.name);
+      default: return compareJa(a.name, b.name);
+    }
+  });
+
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  unifiedCurrentPage = Math.min(Math.max(1, unifiedCurrentPage), totalPages);
+  const start = (unifiedCurrentPage - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+
+  unifiedUsersBody.innerHTML = '';
+  for (const item of pageRows) {
+    const row = document.createElement('tr');
+    const registered = item.registrationState === 'registered';
+    const nameHtml = registered && item.userId
+      ? `<button class="user-name-link" type="button" data-unified-action="detail" data-user-id="${escapeHtml(item.userId)}" data-user-email="${escapeHtml(item.email)}" data-user-name="${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>`
+      : escapeHtml(item.name);
+    const unionLabel = item.unionStatus === 'member' ? '組合員' : (item.unionStatus === 'nonmember' ? '非組合員' : '—');
+    const roleLabel = item.role === 'admin' ? '<span class="admin-role-badge is-admin">管理者</span>' : (registered ? '<span class="admin-role-badge not-admin">一般利用者</span>' : '—');
+    const actions = [];
+    if (item.allowEntry) actions.push(`<button class="table-action-button edit-action" type="button" data-unified-action="allow-edit" data-email="${escapeHtml(item.allowEntry.id)}">✎ 編集</button>`);
+    if (registered && item.userId) {
+      actions.push(`<button class="table-action-button admin-role-action" type="button" data-unified-action="user-admin" data-user-id="${escapeHtml(item.userId)}">${item.role === 'admin' ? (String(item.userId) === currentAdminUid ? '現在の管理者' : '管理者解除') : '管理者にする'}</button>`);
+      actions.push(`<button class="table-action-button toggle-action" type="button" data-unified-action="user-toggle" data-user-id="${escapeHtml(item.userId)}">${item.status === 'active' ? '利用停止' : '利用再開'}</button>`);
+      actions.push(`<button class="table-action-button delete-action" type="button" data-unified-action="user-delete" data-user-id="${escapeHtml(item.userId)}">🗑 削除</button>`);
+    } else if (item.allowEntry) {
+      actions.push(`<button class="table-action-button toggle-action" type="button" data-unified-action="allow-toggle" data-email="${escapeHtml(item.allowEntry.id)}">${item.status === 'active' ? '利用停止' : '利用再開'}</button>`);
+      actions.push(`<button class="table-action-button delete-action" type="button" data-unified-action="allow-delete" data-email="${escapeHtml(item.allowEntry.id)}">🗑 削除</button>`);
+    }
+
+    row.innerHTML = `<td>${nameHtml}</td><td>${escapeHtml(item.email || '—')}</td><td>${escapeHtml(item.driverNumber)}</td><td>${escapeHtml(item.office)}</td><td>${unionLabel}</td><td>${registered ? '登録済み' : '未登録'}</td><td>${item.status === 'active' ? '利用中' : '利用停止'}</td><td>${roleLabel}</td><td>${registered ? formatTimestamp(item.createdAt) : '—'}</td><td>${registered ? formatTimestamp(item.lastLoginAt) : '—'}</td><td><div class="table-action-buttons">${actions.join('')}</div></td>`;
+    unifiedUsersBody.appendChild(row);
+  }
+
+  const count = document.getElementById('unifiedVisibleCount');
+  if (count) count.textContent = total ? `全${total}件中 ${start + 1}～${Math.min(start + pageSize, total)}件を表示` : '該当するユーザーはありません。';
+  const prev = document.getElementById('unifiedPrevPage');
+  const next = document.getElementById('unifiedNextPage');
+  if (prev) prev.disabled = unifiedCurrentPage <= 1;
+  if (next) next.disabled = unifiedCurrentPage >= totalPages;
+  const pageBox = document.getElementById('unifiedPageButtons');
+  if (pageBox) {
+    pageBox.innerHTML = '';
+    for (let page = 1; page <= totalPages; page += 1) {
+      if (totalPages > 7 && page > 2 && page < totalPages - 1 && Math.abs(page - unifiedCurrentPage) > 1) {
+        if (page === 3 || page === totalPages - 2) pageBox.insertAdjacentHTML('beforeend', '<span class="pagination-ellipsis">…</span>');
+        continue;
+      }
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = String(page);
+      button.dataset.page = String(page);
+      if (page === unifiedCurrentPage) button.setAttribute('aria-current', 'page');
+      pageBox.appendChild(button);
+    }
+  }
+}
+
+function clickLegacy(selector) {
+  const target = document.querySelector(selector);
+  if (target instanceof HTMLElement) { target.click(); return true; }
+  return false;
+}
+
 
 function normalizeSearchText(value) {
   return String(value || '').normalize('NFKC').toLowerCase().trim();
@@ -487,6 +656,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
       .map((item) => ({ id: item.id, ...item.data() }))
       .sort((left, right) => left.id.localeCompare(right.id, 'ja'));
 
+    cachedAllowlistEntries = entries;
     allowlistBody.innerHTML = '';
 
     for (const entry of entries) {
@@ -538,6 +708,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
       allowlistBody.appendChild(row);
     }
     applyAllowlistFilters();
+    renderUnifiedUserList();
   }
 
   allowlistBody.addEventListener('click', async (event) => {
@@ -674,6 +845,8 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
       const activeAdmins = [...adminMap.values()]
         .filter((admin) => admin.enabled !== false);
 
+      cachedRegisteredUsers = users;
+      cachedAdminMap = adminMap;
       usersBody.innerHTML = '';
 
       let activeCount = 0;
@@ -748,6 +921,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
         usersBody.appendChild(row);
       }
       applyRegisteredUserFilters();
+      renderUnifiedUserList();
 
       document.getElementById('userCount').textContent = `${users.length}人`;
       document.getElementById('activeCount').textContent = `${activeCount}人`;
@@ -758,6 +932,42 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
       setStatus(status, errorText(error, '利用者一覧を読み込めませんでした。'), 'error');
     }
   }
+
+
+  ['unifiedUserSearch', 'unifiedRegistrationFilter', 'unifiedStatusFilter', 'unifiedRoleFilter', 'unifiedSort', 'unifiedPageSize'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('input', () => renderUnifiedUserList(true));
+    document.getElementById(id)?.addEventListener('change', () => renderUnifiedUserList(true));
+  });
+  document.getElementById('unifiedPrevPage')?.addEventListener('click', () => { unifiedCurrentPage -= 1; renderUnifiedUserList(); });
+  document.getElementById('unifiedNextPage')?.addEventListener('click', () => { unifiedCurrentPage += 1; renderUnifiedUserList(); });
+  document.getElementById('unifiedPageButtons')?.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-page]');
+    if (!button) return;
+    unifiedCurrentPage = Number(button.dataset.page || 1);
+    renderUnifiedUserList();
+  });
+  unifiedUsersBody?.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-unified-action]');
+    if (!button) return;
+    const action = button.dataset.unifiedAction;
+    const userId = button.dataset.userId || '';
+    const email = button.dataset.email || '';
+    if (action === 'detail') {
+      clickLegacy(`#usersBody button[data-user-action="detail"][data-user-id="${CSS.escape(userId)}"]`);
+    } else if (action === 'allow-edit') {
+      clickLegacy(`#allowlistBody button[data-action="edit"][data-allow-email="${CSS.escape(email)}"]`);
+    } else if (action === 'allow-toggle') {
+      clickLegacy(`#allowlistBody button[data-action="toggle"][data-allow-email="${CSS.escape(email)}"]`);
+    } else if (action === 'allow-delete') {
+      clickLegacy(`#allowlistBody button[data-action="delete-allowlist"][data-allow-email="${CSS.escape(email)}"]`);
+    } else if (action === 'user-admin') {
+      clickLegacy(`#usersBody button[data-user-id="${CSS.escape(userId)}"][data-user-action="grant-admin"], #usersBody button[data-user-id="${CSS.escape(userId)}"][data-user-action="revoke-admin"]`);
+    } else if (action === 'user-toggle') {
+      clickLegacy(`#usersBody button[data-user-id="${CSS.escape(userId)}"][data-user-action="toggle"]`);
+    } else if (action === 'user-delete') {
+      clickLegacy(`#usersBody button[data-user-id="${CSS.escape(userId)}"][data-user-action="delete"]`);
+    }
+  });
 
 
   const userDetailDialog=document.getElementById('userDetailDialog');

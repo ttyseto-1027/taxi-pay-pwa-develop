@@ -522,3 +522,64 @@ tr[hidden] { display: none !important; }
 .user-name-link{border:0;background:transparent;color:#075985;text-decoration:underline;font:inherit;font-weight:700;padding:0;cursor:pointer;text-align:left}
 .user-detail-dialog{width:min(920px,94vw);max-height:88vh;overflow:auto}.user-detail-dialog details{margin:.8rem 0;border:1px solid #d6dde0;border-radius:.65rem;padding:.65rem}.device-detail-card{border:1px solid #d6dde0;border-radius:.6rem;padding:.7rem;margin:.55rem 0}.device-detail-card p{margin:.25rem 0}.system-cache-list code{overflow-wrap:anywhere}.error-text{color:#b42318}
 @media(max-width:700px){.app-version-line{font-size:.72rem}.app-update-notice{margin:.5rem .65rem;display:block}.app-update-notice span,.app-update-notice button{display:block;margin:.45rem 0 0;width:100%}.user-detail-dialog{width:96vw;padding:.8rem}.user-detail-dialog .table-wrap{overflow:auto}}
+
+/* Phase7.5 管理画面：ユーザー一覧統合・ページネーション */
+.admin-user-stage-unified {
+  background: #f4f8fb;
+  border-color: #6b98b8;
+}
+.admin-list-tools-unified {
+  grid-template-columns: minmax(240px, 2fr) repeat(5, minmax(130px, 1fr));
+}
+.admin-list-summary {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+.admin-list-summary p { margin: 0; }
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.admin-pagination button {
+  min-height: 40px;
+  min-width: 44px;
+  border: 1px solid #9aaab5;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-pagination button[aria-current="page"] {
+  background: #0b5f78;
+  color: #fff;
+  border-color: #0b5f78;
+}
+.admin-pagination button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.admin-pagination-pages {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pagination-ellipsis { padding: 0 4px; }
+
+@media (max-width: 900px) {
+  .admin-list-tools-unified { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .admin-list-tools-unified { grid-template-columns: 1fr; }
+  .admin-pagination { justify-content: space-between; }
+  .admin-pagination-pages { order: 3; width: 100%; justify-content: center; }
+}

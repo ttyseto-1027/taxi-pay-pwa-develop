@@ -143,47 +143,44 @@
 </div>
 </form>
 <p aria-live="polite" class="note" id="allowlistStatus"></p>
-<div aria-label="登録待ちユーザーの検索" class="admin-list-tools"><label>登録待ちを検索<input id="allowlistSearch" placeholder="氏名・メール・乗務員番号・営業所" type="search"/></label><label>初回登録<select id="allowlistRegistrationFilter"><option value="">すべて</option><option value="pending">未登録</option><option value="registered">登録済み</option></select></label><p aria-live="polite" class="admin-visible-count" id="allowlistVisibleCount"></p></div><div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>氏名</th>
-<th>Googleアカウント</th>
-<th>乗務員番号</th>
-<th>営業所</th>
-<th>組合員区分</th>
-<th>テスター</th>
-<th>利用状態</th>
-<th>初回登録</th>
-<th>操作</th>
-</tr>
-</thead>
-<tbody id="allowlistBody"></tbody>
-</table>
+<div hidden aria-hidden="true">
+  <div aria-label="登録待ちユーザーの検索" class="admin-list-tools"><label>登録待ちを検索<input id="allowlistSearch" placeholder="氏名・メール・乗務員番号・営業所" type="search"/></label><label>初回登録<select id="allowlistRegistrationFilter"><option value="">すべて</option><option value="pending">未登録</option><option value="registered">登録済み</option></select></label><p aria-live="polite" class="admin-visible-count" id="allowlistVisibleCount"></p></div>
+  <div class="table-wrap"><table><tbody id="allowlistBody"></tbody></table></div>
 </div>
 </div>
-<section class="admin-user-stage admin-user-stage-registered"><h2>登録済みユーザー</h2><p class="note">初回ログインが完了し、利用者情報が作成されたユーザーです。</p><div aria-label="登録済みユーザーの検索" class="admin-list-tools"><label>登録済みを検索<input id="registeredUserSearch" placeholder="氏名・メール・プラン" type="search"/></label><label>利用状態<select id="registeredStatusFilter"><option value="">すべて</option><option value="active">利用中</option><option value="locked">利用停止</option></select></label><label>権限<select id="registeredRoleFilter"><option value="">すべて</option><option value="admin">管理者</option><option value="user">一般利用者</option></select></label><p aria-live="polite" class="admin-visible-count" id="registeredVisibleCount"></p></div><p aria-live="polite" class="note" id="adminStatus"></p><div class="table-wrap">
+
+<section class="admin-user-stage admin-user-stage-unified">
+<h2>ユーザー一覧</h2>
+<p class="note">事前登録ユーザーと登録済みユーザーを1つの一覧で管理します。氏名・Googleアカウント・乗務員番号・営業所で検索できます。</p>
+<div aria-label="ユーザー一覧の検索と並び替え" class="admin-list-tools admin-list-tools-unified">
+<label>検索<input id="unifiedUserSearch" placeholder="氏名・Googleアカウント・乗務員番号・営業所" type="search"/></label>
+<label>登録状態<select id="unifiedRegistrationFilter"><option value="">すべて</option><option value="pending">未登録</option><option value="registered">登録済み</option></select></label>
+<label>利用状態<select id="unifiedStatusFilter"><option value="">すべて</option><option value="active">利用中</option><option value="locked">利用停止</option></select></label>
+<label>権限<select id="unifiedRoleFilter"><option value="">すべて</option><option value="admin">管理者</option><option value="user">一般利用者</option></select></label>
+<label>並び順<select id="unifiedSort"><option value="name-asc">氏名（昇順）</option><option value="name-desc">氏名（降順）</option><option value="office-asc">営業所 → 氏名</option><option value="driver-asc">乗務員番号（昇順）</option><option value="registration">未登録を先に</option><option value="created-desc">登録日時（新しい順）</option><option value="last-desc">最終利用（新しい順）</option></select></label>
+<label>表示件数<select id="unifiedPageSize"><option value="10">10件</option><option value="20">20件</option></select></label>
+</div>
+<div class="admin-list-summary"><p aria-live="polite" id="unifiedVisibleCount"></p><p aria-live="polite" class="note" id="adminStatus"></p></div>
+<div class="table-wrap">
 <table>
-<thead>
-<tr>
-<th>氏名</th>
-<th>メール</th>
-<th>プラン</th>
-<th>状態</th>
-<th>管理者権限</th>
-<th>登録日時</th>
-<th>最終利用</th>
-<th>操作</th>
-</tr>
-</thead>
-<tbody id="usersBody"></tbody>
+<thead><tr><th>氏名</th><th>Googleアカウント</th><th>乗務員番号</th><th>営業所</th><th>組合員区分</th><th>登録状態</th><th>利用状態</th><th>権限</th><th>登録日時</th><th>最終利用</th><th>操作</th></tr></thead>
+<tbody id="unifiedUsersBody"></tbody>
 </table>
-</div></section>
+</div>
+<nav aria-label="ユーザー一覧ページ切替" class="admin-pagination" id="unifiedPagination">
+<button type="button" id="unifiedPrevPage">← 前へ</button><div class="admin-pagination-pages" id="unifiedPageButtons"></div><button type="button" id="unifiedNextPage">次へ →</button>
+</nav>
+</section>
+
+<section hidden aria-hidden="true" class="admin-user-stage admin-user-stage-registered">
+<div aria-label="登録済みユーザーの検索" class="admin-list-tools"><label>登録済みを検索<input id="registeredUserSearch" placeholder="氏名・メール・プラン" type="search"/></label><label>利用状態<select id="registeredStatusFilter"><option value="">すべて</option><option value="active">利用中</option><option value="locked">利用停止</option></select></label><label>権限<select id="registeredRoleFilter"><option value="">すべて</option><option value="admin">管理者</option><option value="user">一般利用者</option></select></label><p aria-live="polite" class="admin-visible-count" id="registeredVisibleCount"></p></div>
+<div class="table-wrap"><table><tbody id="usersBody"></tbody></table></div>
+</section>
 
 
 </section>
 </main><dialog class="modal user-detail-dialog" id="userDetailDialog"><div class="modal-title-row"><h2 id="userDetailTitle">ユーザー詳細</h2><button class="icon-button" id="closeUserDetail" type="button">✕</button></div><div id="userDetailContent"><p>読み込み中…</p></div></dialog>
 <script src="firebase-config.js?v=20260806-phase75-r3"></script><script src="app-meta.js?v=20260806-phase75-r3"></script><script src="phase75-ops.js?v=20260806-phase75-r3"></script>
-<script src="admin.js?v=20260817-phase75-app-name" type="module"></script>
+<script src="admin.js?v=20260817-phase75-unified-users" type="module"></script>
 </body>
 </html>
