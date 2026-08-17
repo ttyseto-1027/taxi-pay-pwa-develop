@@ -49,60 +49,28 @@ service cloud.firestore {
         && allowDoc().data.registeredUid == request.auth.uid;
     }
 
-
-    /*
-     * 管理者
-     */
-
+    /* 管理者 */
     match /admins/{uid} {
-
-      // 自分が管理者として登録されているか確認
       allow get: if signedIn()
         && uid == request.auth.uid;
-
-      // 管理者一覧の操作は管理者のみ
       allow list, create, update, delete: if isAdmin();
     }
 
-
-    /*
-     * β版利用許可リスト
-     *
-     * ドキュメントID：
-     * Googleアカウントのメールアドレス
-     */
-
+    /* β版利用許可リスト */
     match /betaAllowlist/{emailAddress} {
-
-      // 本人または管理者だけが取得可能
       allow get: if signedIn()
         && (
           emailAddress == email()
           || isAdmin()
         );
-
-      // 一覧取得、登録、削除は管理者のみ
       allow list, create, delete: if isAdmin();
 
-      /*
-       * 更新
-       *
-       * 管理者：
-       * 全項目を更新可能
-       *
-       * 一般利用者：
-       * 初回ログイン時の登録情報だけを更新可能
-       */
       allow update: if isAdmin()
-
-        // 現在のv11に対応
-        // registeredUid・registeredAtの2項目を更新
         || (
           signedIn()
           && emailAddress == email()
           && resource.data.enabled == true
           && resource.data.registeredUid == null
-
           && request.resource.data
             .diff(resource.data)
             .affectedKeys()
@@ -110,19 +78,15 @@ service cloud.firestore {
               'registeredUid',
               'registeredAt'
             ])
-
           && request.resource.data.registeredUid
             == request.auth.uid
         )
-
-        // invitationUsedも同時に更新する将来版に対応
         || (
           signedIn()
           && emailAddress == email()
           && resource.data.enabled == true
           && resource.data.invitationUsed == false
           && resource.data.registeredUid == null
-
           && request.resource.data
             .diff(resource.data)
             .affectedKeys()
@@ -131,44 +95,27 @@ service cloud.firestore {
               'registeredUid',
               'registeredAt'
             ])
-
           && request.resource.data.invitationUsed == true
           && request.resource.data.registeredUid
             == request.auth.uid
         );
     }
 
-
-    /*
-     * アクセスコード
-     */
-
+    /* アクセスコード */
     match /accessCodes/{codeHash} {
-
-      // 許可済み利用者または管理者が取得可能
       allow get: if isAllowlisted()
         || isAdmin();
-
-      // 一覧取得、作成、削除は管理者のみ
       allow list, create, delete: if isAdmin();
-
-      /*
-       * 管理者以外は、使用回数の加算に必要な項目だけ更新可能
-       */
       allow update: if isAdmin()
         || (
           isAllowlisted()
-
           && resource.data.active == true
           && resource.data.usageCount is int
           && resource.data.maxUses is int
-
           && request.resource.data.usageCount
             == resource.data.usageCount + 1
-
           && request.resource.data.usageCount
             <= resource.data.maxUses
-
           && request.resource.data
             .diff(resource.data)
             .affectedKeys()
@@ -177,72 +124,39 @@ service cloud.firestore {
               'lastUsedAt',
               'lastUsedBy'
             ])
-
           && request.resource.data.lastUsedBy
             == request.auth.uid
         );
     }
 
-
-    /*
-     * 利用者情報
-     */
-
+    /* 利用者情報 */
     match /users/{uid} {
-
-      // 本人または管理者が取得可能
       allow get: if signedIn()
         && (
           uid == request.auth.uid
           || isAdmin()
         );
-
-      // 一覧取得は管理者のみ
       allow list: if isAdmin();
-
-      /*
-       * 初回ログイン時の利用者情報作成
-       *
-       * v1.3βの値に合わせる
-       */
       allow create: if isAllowlisted()
-
         && uid == request.auth.uid
-
         && request.resource.data.email
           == email()
-
         && request.resource.data.status
           == 'active'
-
         && request.resource.data.plan
           == 'beta_v1_3'
-
         && request.resource.data.authProvider
           == 'google.com'
-
         && request.resource.data.version
           == 'v1.3-beta';
-
-      /*
-       * 管理者：
-       * 全項目を更新可能
-       *
-       * 本人：
-       * 最終ログイン日時とバージョンだけ更新可能
-       */
       allow update: if isAdmin()
         || (
           isAllowlisted()
-
           && uid == request.auth.uid
-
           && resource.data.email
             == email()
-
           && request.resource.data.email
             == resource.data.email
-
           && request.resource.data
             .diff(resource.data)
             .affectedKeys()
@@ -251,90 +165,50 @@ service cloud.firestore {
               'lastVersion'
             ])
         );
-
-      // 削除は管理者のみ
       allow delete: if isAdmin();
     }
 
-
-    /*
-     * Phase7.5 利用端末情報
-     */
-
+    /* Phase7.5 利用端末情報 */
     match /users/{uid}/devices/{deviceId} {
-
-      // 本人または管理者が閲覧可能
       allow get, list: if signedIn()
         && (
           uid == request.auth.uid
           || isAdmin()
         );
-
-      // 本人の端末情報だけ記録・更新・削除可能
       allow create, update, delete: if signedIn()
         && uid == request.auth.uid;
     }
 
-
-    /*
-     * Phase7.5 ログイン履歴
-     */
-
+    /* Phase7.5 ログイン履歴 */
     match /users/{uid}/loginHistory/{historyId} {
-
-      // 本人または管理者が閲覧可能
       allow get, list: if signedIn()
         && (
           uid == request.auth.uid
           || isAdmin()
         );
-
-      // 本人のログイン履歴だけ作成可能
       allow create: if signedIn()
         && uid == request.auth.uid;
-
-      // 保存期間超過データの整理用
       allow delete: if signedIn()
         && uid == request.auth.uid;
     }
 
-
-    /*
-     * v1.3βログイン成功記録
-     */
-
+    /* v1.3βログイン成功記録 */
     match /v13LoginSuccess/{uid} {
-
-      // 本人または管理者が取得可能
       allow get: if signedIn()
         && (
           uid == request.auth.uid
           || isAdmin()
         );
-
-      /*
-       * 猶予期間開始人数を数えるため、
-       * 許可済み利用者にも一覧取得を認める
-       */
       allow list: if isAllowlisted()
         || isAdmin();
-
-      /*
-       * 本人のログイン成功記録だけ作成可能
-       */
       allow create: if isAllowlisted()
-
         && uid == request.auth.uid
-
         && request.resource.data.uid
           == request.auth.uid
-
         && request.resource.data.email
           == email()
-
         && request.resource.data.isAdmin
           == false
-
         && request.resource.data
           .keys()
           .hasOnly([
@@ -345,23 +219,14 @@ service cloud.firestore {
             'lastSuccessAt',
             'isAdmin'
           ]);
-
-      /*
-       * 本人のログイン成功記録だけ更新可能
-       */
       allow update: if isAllowlisted()
-
         && uid == request.auth.uid
-
         && request.resource.data.uid
           == request.auth.uid
-
         && request.resource.data.email
           == email()
-
         && request.resource.data.isAdmin
           == false
-
         && request.resource.data
           .diff(resource.data)
           .affectedKeys()
@@ -373,33 +238,15 @@ service cloud.firestore {
             'lastSuccessAt',
             'isAdmin'
           ]);
-
-      // 削除は管理者のみ
       allow delete: if isAdmin();
     }
 
-
-    /*
-     * アプリ共通設定
-     */
-
+    /* アプリ共通設定 */
     match /appSettings/{settingId} {
-
-      // ログイン済み利用者が設定を取得可能
       allow get: if signedIn();
-
-      // 設定一覧の取得は管理者のみ
       allow list: if isAdmin();
-
-      /*
-       * v1.3βの猶予期間開始設定
-       *
-       * 許可するドキュメントは
-       * appSettings/v1_3_beta のみ
-       */
       allow create: if settingId == 'v1_3_beta'
         && isAllowlisted()
-
         && request.resource.data
           .keys()
           .hasOnly([
@@ -407,26 +254,15 @@ service cloud.firestore {
             'gracePeriodDays',
             'gracePeriodTriggeredByCount'
           ])
-
         && request.resource.data.gracePeriodDays
           == 14
-
         && request.resource.data.gracePeriodTriggeredByCount is int
-
         && request.resource.data.gracePeriodTriggeredByCount
           >= 3;
-
-      /*
-       * 通常の設定変更は管理者のみ
-       */
       allow update, delete: if isAdmin();
     }
 
-
-    /*
-     * 上記に定義されていないデータへのアクセスは拒否
-     */
-
+    /* 上記に定義されていないデータへのアクセスは拒否 */
     match /{document=**} {
       allow read, write: if false;
     }

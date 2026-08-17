@@ -28,7 +28,7 @@ import {
 const DIAG_KEY = 'taxiPayAuthDiagnosticV17';
 const ATTEMPT_KEY = 'taxiPayAuthAttemptV1';
 const MAX_STEPS = 120;
-const DIAGNOSTIC_BUILD = 'phase7.5-operations-foundation-20260806-03';
+const DIAGNOSTIC_BUILD = 'phase7.5-app-registered-name-20260817-01';
 
 function safeStorageGet() {
   try { return JSON.parse(localStorage.getItem(DIAG_KEY) || '{}'); } catch { return {}; }
@@ -566,8 +566,8 @@ export async function initializeTaxiPayAuth(){
     if(!a.driverNumber) throw Object.assign(new Error('事前登録情報に乗務員番号がありません。管理者へお問い合わせください。'),{authStage:'DRIVER'});
 
     const profile={
-      name:user.displayName||a.displayName||'',
-      displayName:user.displayName||'',
+      name:a.displayName||user.displayName||'',
+      displayName:a.displayName||user.displayName||'',
       email:allow.email,
       status:'active',
       plan:'beta_v1_3',

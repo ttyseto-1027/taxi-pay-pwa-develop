@@ -636,15 +636,33 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
     setStatus(status, '読み込み中…', 'info');
 
     try {
-      const [userSnapshot, adminSnapshot] = await Promise.all([
+      const [userSnapshot, adminSnapshot, allowlistSnapshot] = await Promise.all([
         getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc'))),
-        getDocs(collection(db, 'admins'))
+        getDocs(collection(db, 'admins')),
+        getDocs(collection(db, 'betaAllowlist'))
       ]);
 
-      const users = userSnapshot.docs.map((item) => ({
-        id: item.id,
-        ...item.data()
-      }));
+      // 氏名はGoogleアカウントの表示名ではなく、管理者が事前登録マスターに
+      // 登録したdisplayNameを正本として扱う。既存usersドキュメントは変更しない。
+      const allowlistByUid = new Map();
+      const allowlistByEmail = new Map();
+      for (const item of allowlistSnapshot.docs) {
+        const data = item.data();
+        if (data.registeredUid) allowlistByUid.set(String(data.registeredUid), data);
+        const emailKey = String(data.email || item.id || '').trim().toLowerCase();
+        if (emailKey) allowlistByEmail.set(emailKey, data);
+      }
+
+      const users = userSnapshot.docs.map((item) => {
+        const data = item.data();
+        const emailKey = String(data.email || '').trim().toLowerCase();
+        const allowEntry = allowlistByUid.get(item.id) || allowlistByEmail.get(emailKey) || null;
+        return {
+          id: item.id,
+          ...data,
+          appRegisteredName: allowEntry?.displayName || data.name || data.displayName || ''
+        };
+      });
 
       const adminMap = new Map(
         adminSnapshot.docs.map((item) => [
@@ -673,7 +691,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
         row.dataset.userRole = hasAdminRole ? 'admin' : 'user';
 
         row.innerHTML = `
-          <td><button class="user-name-link" type="button" data-user-action="detail" data-user-id="${escapeHtml(user.id)}" data-user-email="${escapeHtml(user.email || '')}" data-user-name="${escapeHtml(user.name || user.displayName || '')}">${escapeHtml(user.name || user.displayName || '—')}</button></td>
+          <td><button class="user-name-link" type="button" data-user-action="detail" data-user-id="${escapeHtml(user.id)}" data-user-email="${escapeHtml(user.email || '')}" data-user-name="${escapeHtml(user.appRegisteredName || user.name || user.displayName || '')}">${escapeHtml(user.appRegisteredName || user.name || user.displayName || '—')}</button></td>
           <td>${escapeHtml(user.email || '—')}</td>
           <td>${escapeHtml(user.plan || '—')}</td>
           <td>${user.status === 'active' ? '利用中' : '利用停止'}</td>
@@ -692,7 +710,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
                 data-user-action="${hasAdminRole ? 'revoke-admin' : 'grant-admin'}"
                 data-user-id="${escapeHtml(user.id)}"
                 data-user-email="${escapeHtml(user.email || '')}"
-                data-user-name="${escapeHtml(user.name || user.displayName || '')}"
+                data-user-name="${escapeHtml(user.appRegisteredName || user.name || user.displayName || '')}"
                 data-is-current-admin="${isCurrentAdmin}"
                 ${isCurrentAdmin && hasAdminRole ? 'disabled title="自分自身の管理者権限は解除できません"' : ''}
               >
@@ -706,7 +724,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
                 data-user-action="toggle"
                 data-user-id="${escapeHtml(user.id)}"
                 data-user-email="${escapeHtml(user.email || '')}"
-                data-user-name="${escapeHtml(user.name || user.displayName || '')}"
+                data-user-name="${escapeHtml(user.appRegisteredName || user.name || user.displayName || '')}"
                 data-status="${escapeHtml(user.status || '')}"
               >
                 ${user.status === 'active' ? '利用停止' : '利用再開'}
@@ -717,7 +735,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
                 data-user-action="delete"
                 data-user-id="${escapeHtml(user.id)}"
                 data-user-email="${escapeHtml(user.email || '')}"
-                data-user-name="${escapeHtml(user.name || user.displayName || '')}"
+                data-user-name="${escapeHtml(user.appRegisteredName || user.name || user.displayName || '')}"
                 data-has-admin-role="${hasAdminRole}"
                 ${isCurrentAdmin ? 'disabled title="現在ログイン中の管理者は削除できません"' : ''}
               >
@@ -754,7 +772,7 @@ if (!config.enabled || !config.apiKey || config.apiKey === 'REPLACE_ME') {
       const u=userSnap.exists()?userSnap.data():{};
       const devices=devicesSnap.docs.map(d=>d.data()).sort((a,b)=>(b.lastSeenAt?.toMillis?.()||0)-(a.lastSeenAt?.toMillis?.()||0));
       const history=historySnap.docs.map(d=>d.data()).sort((a,b)=>(b.occurredAt?.toMillis?.()||0)-(a.occurredAt?.toMillis?.()||0)).slice(0,100);
-      const basic=[['氏名',u.name||u.displayName||userName||'—'],['Googleアカウント',u.email||userEmail||'—'],['乗務員番号',u.driverNumber||'—'],['営業所',u.office||'—'],['勤務形態',u.shiftType||'—'],['組合員区分',u.unionStatus||'—'],['利用状態',u.status||'—'],['登録日',formatTimestamp(u.createdAt)],['最終更新',formatTimestamp(u.updatedAt||u.lastLoginAt)]];
+      const basic=[['氏名',userName||u.name||u.displayName||'—'],['Googleアカウント',u.email||userEmail||'—'],['乗務員番号',u.driverNumber||'—'],['営業所',u.office||'—'],['勤務形態',u.shiftType||'—'],['組合員区分',u.unionStatus||'—'],['利用状態',u.status||'—'],['登録日',formatTimestamp(u.createdAt)],['最終更新',formatTimestamp(u.updatedAt||u.lastLoginAt)]];
       content.innerHTML=`<details open><summary>基本情報</summary><dl class="profile-list">${basic.map(([k,v])=>`<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join('')}</dl></details><details open><summary>利用端末（${devices.length}台）</summary>${devices.length?devices.map((d,i)=>`<div class="device-detail-card"><strong>${i+1}. ${escapeHtml(d.os||'—')} / ${escapeHtml(d.browser||'—')}</strong><p>起動方式：${escapeHtml(d.launchMode||'—')}｜画面：${escapeHtml(`${d.screenWidth||0}×${d.screenHeight||0}`)}</p><p>Version ${escapeHtml(d.appVersion||'—')}｜Build ${escapeHtml(d.build||'—')}｜${escapeHtml(d.environment||'—')}</p><p>最終利用：${escapeHtml(d.lastSeenAtJst||formatTimestamp(d.lastSeenAt))}</p></div>`).join(''):'<p>端末情報はまだありません。</p>'}</details><details open><summary>ログイン履歴（直近60日）</summary>${history.length?`<div class="table-wrap"><table><thead><tr><th>日時</th><th>端末</th><th>結果</th><th>Build</th><th>エラー</th></tr></thead><tbody>${history.map(h=>`<tr><td>${escapeHtml(h.occurredAtJst||formatTimestamp(h.occurredAt))}</td><td>${escapeHtml(`${h.os||'—'} / ${h.browser||'—'}`)}</td><td>${h.result==='success'?'成功':'失敗'}</td><td>${escapeHtml(h.build||'—')}</td><td>${escapeHtml(h.errorCode||'—')}</td></tr>`).join('')}</tbody></table></div>`:'<p>履歴はまだありません。</p>'}</details><details><summary>監査ログ（将来対応）</summary><p>勤務実績や設定変更の監査ログは将来追加します。</p></details>`;
     } catch (error) {
       console.error('[UserDetail] Failed to load user detail', error);
