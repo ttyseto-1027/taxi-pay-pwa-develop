@@ -157,18 +157,32 @@ function renderUnifiedUserList(resetPage = false) {
       : escapeHtml(item.name);
     const unionLabel = item.unionStatus === 'member' ? '組合員' : (item.unionStatus === 'nonmember' ? '非組合員' : '—');
     const roleLabel = item.role === 'admin' ? '<span class="admin-role-badge is-admin">管理者</span>' : (registered ? '<span class="admin-role-badge not-admin">一般利用者</span>' : '—');
-    const actions = [];
-    if (item.allowEntry) actions.push(`<button class="table-action-button edit-action" type="button" data-unified-action="allow-edit" data-email="${escapeHtml(item.allowEntry.id)}">✎ 編集</button>`);
+    const actionSlots = {
+      edit: item.allowEntry
+        ? `<button class="table-action-button edit-action" type="button" data-unified-action="allow-edit" data-email="${escapeHtml(item.allowEntry.id)}">✎ 編集</button>`
+        : '<span class="table-action-placeholder" aria-hidden="true"></span>',
+      admin: '<span class="table-action-placeholder" aria-hidden="true"></span>',
+      toggle: '<span class="table-action-placeholder" aria-hidden="true"></span>',
+      delete: '<span class="table-action-placeholder" aria-hidden="true"></span>'
+    };
+
     if (registered && item.userId) {
-      actions.push(`<button class="table-action-button admin-role-action" type="button" data-unified-action="user-admin" data-user-id="${escapeHtml(item.userId)}">${item.role === 'admin' ? (String(item.userId) === currentAdminUid ? '現在の管理者' : '管理者解除') : '管理者にする'}</button>`);
-      actions.push(`<button class="table-action-button toggle-action" type="button" data-unified-action="user-toggle" data-user-id="${escapeHtml(item.userId)}">${item.status === 'active' ? '利用停止' : '利用再開'}</button>`);
-      actions.push(`<button class="table-action-button delete-action" type="button" data-unified-action="user-delete" data-user-id="${escapeHtml(item.userId)}">🗑 削除</button>`);
+      actionSlots.admin = `<button class="table-action-button admin-role-action" type="button" data-unified-action="user-admin" data-user-id="${escapeHtml(item.userId)}">${item.role === 'admin' ? (String(item.userId) === currentAdminUid ? '現在の管理者' : '管理者解除') : '管理者にする'}</button>`;
+      actionSlots.toggle = `<button class="table-action-button toggle-action" type="button" data-unified-action="user-toggle" data-user-id="${escapeHtml(item.userId)}">${item.status === 'active' ? '利用停止' : '利用再開'}</button>`;
+      actionSlots.delete = `<button class="table-action-button delete-action" type="button" data-unified-action="user-delete" data-user-id="${escapeHtml(item.userId)}">🗑 削除</button>`;
     } else if (item.allowEntry) {
-      actions.push(`<button class="table-action-button toggle-action" type="button" data-unified-action="allow-toggle" data-email="${escapeHtml(item.allowEntry.id)}">${item.status === 'active' ? '利用停止' : '利用再開'}</button>`);
-      actions.push(`<button class="table-action-button delete-action" type="button" data-unified-action="allow-delete" data-email="${escapeHtml(item.allowEntry.id)}">🗑 削除</button>`);
+      actionSlots.toggle = `<button class="table-action-button toggle-action" type="button" data-unified-action="allow-toggle" data-email="${escapeHtml(item.allowEntry.id)}">${item.status === 'active' ? '利用停止' : '利用再開'}</button>`;
+      actionSlots.delete = `<button class="table-action-button delete-action" type="button" data-unified-action="allow-delete" data-email="${escapeHtml(item.allowEntry.id)}">🗑 削除</button>`;
     }
 
-    row.innerHTML = `<td>${nameHtml}</td><td>${escapeHtml(item.email || '—')}</td><td>${escapeHtml(item.driverNumber)}</td><td>${escapeHtml(item.office)}</td><td>${unionLabel}</td><td>${registered ? '登録済み' : '未登録'}</td><td>${item.status === 'active' ? '利用中' : '利用停止'}</td><td>${roleLabel}</td><td>${registered ? formatTimestamp(item.createdAt) : '—'}</td><td>${registered ? formatTimestamp(item.lastLoginAt) : '—'}</td><td><div class="table-action-buttons">${actions.join('')}</div></td>`;
+    const actionsHtml = `
+      <div class="table-action-slot action-slot-edit">${actionSlots.edit}</div>
+      <div class="table-action-slot action-slot-admin">${actionSlots.admin}</div>
+      <div class="table-action-slot action-slot-toggle">${actionSlots.toggle}</div>
+      <div class="table-action-slot action-slot-delete">${actionSlots.delete}</div>
+    `;
+
+    row.innerHTML = `<td>${nameHtml}</td><td>${escapeHtml(item.email || '—')}</td><td>${escapeHtml(item.driverNumber)}</td><td>${escapeHtml(item.office)}</td><td>${unionLabel}</td><td>${registered ? '登録済み' : '未登録'}</td><td>${item.status === 'active' ? '利用中' : '利用停止'}</td><td>${roleLabel}</td><td>${registered ? formatTimestamp(item.createdAt) : '—'}</td><td>${registered ? formatTimestamp(item.lastLoginAt) : '—'}</td><td><div class="table-action-buttons unified-action-grid">${actionsHtml}</div></td>`;
     unifiedUsersBody.appendChild(row);
   }
 
