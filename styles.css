@@ -583,3 +583,60 @@ tr[hidden] { display: none !important; }
   .admin-pagination { justify-content: space-between; }
   .admin-pagination-pages { order: 3; width: 100%; justify-content: center; }
 }
+
+
+/* ============================================================
+   Phase7.5 最終UI調整 2026-08-18
+   ============================================================ */
+.admin-list-tools-unified{
+  grid-template-columns:minmax(210px,1.7fr) minmax(105px,.8fr) minmax(105px,.8fr) minmax(95px,.7fr) minmax(145px,1fr) minmax(88px,.65fr);
+  gap:10px;
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.admin-list-tools-unified > label{min-width:0}
+.admin-list-tools-unified input,
+.admin-list-tools-unified select{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+}
+#unifiedPageSize{min-width:0}
+
+.unified-action-grid{
+  display:grid;
+  grid-template-columns:72px 112px 78px 72px;
+  gap:6px;
+  align-items:center;
+  min-width:max-content;
+}
+.table-action-slot{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  min-width:0;
+}
+.table-action-placeholder{
+  display:block;
+  width:100%;
+  min-height:36px;
+}
+.unified-action-grid .table-action-button{
+  width:100%;
+  min-width:0;
+  padding-left:7px;
+  padding-right:7px;
+  text-align:center;
+}
+
+@media(max-width:1100px){
+  .admin-list-tools-unified{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .admin-list-tools-unified{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px){
+  .admin-list-tools-unified{grid-template-columns:1fr}
+}
