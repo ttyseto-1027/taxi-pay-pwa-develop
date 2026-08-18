@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260819-01-revenue-adjustment-ui';
+const CACHE = 'taxi-pay-v1.4-beta-20260819-02-cache-update-r6';
 
 const FILES = [
   './',
@@ -27,6 +27,13 @@ const FILES = [
   './app-meta.json',
   './app-meta.js'
 ];
+
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -678,3 +678,10 @@ tr[hidden] { display: none !important; }
 @media(max-width:520px){
   .revenue-adjustment-grid{grid-template-columns:1fr}
 }
+
+/* Phase7.5 更新通知安定化 r6 */
+.app-update-notice-stable{
+  position:relative;
+  z-index:10000;
+  flex-shrink:0;
+}
