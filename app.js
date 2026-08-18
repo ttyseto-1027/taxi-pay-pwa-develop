@@ -257,13 +257,23 @@ function updateRevenuePreview(){
   const formula=$('revenueAdjustmentFormula');
   if(formula){
     const p=adjustmentValue('otherPlus'),m=adjustmentValue('otherMinus'),a=adjustmentValue('idleA'),b=adjustmentValue('idleB');
-    formula.textContent=`${gross.toLocaleString('ja-JP')}円 ＋ ${p.toLocaleString('ja-JP')}円 － ${m.toLocaleString('ja-JP')}円 － ${a.toLocaleString('ja-JP')}円 － ${b.toLocaleString('ja-JP')}円 ＝ ${adjusted.toLocaleString('ja-JP')}円`;
+    formula.textContent=`${gross.toLocaleString('ja-JP')}円 － ${a.toLocaleString('ja-JP')}円 － ${b.toLocaleString('ja-JP')}円 ＋ ${p.toLocaleString('ja-JP')}円 － ${m.toLocaleString('ja-JP')}円 ＝ ${adjusted.toLocaleString('ja-JP')}円`;
   }
 }
 function validateEntry(e){const t=entryTimeInfo(e);if(!e.clockIn||!e.clockOut)return '出勤・退勤時刻を入力してください。';if(t.duration<=0)return '勤務時間を確認してください。';if(e.normalBreakMinutes+e.nightBreakMinutes>t.duration)return '休憩時間が拘束時間を超えています。';if(t.work<=0)return '実働時間が0以下です。';return '';}
 
 initBreakPickers();populateShiftSelects();$('currentMonth').value=payrollMonthOf(today());clearEntry();
-for(const id of ['grossRevenue','otherPlus','otherMinus','idleA','idleB'])$(id)?.addEventListener('input',updateRevenuePreview);document.querySelectorAll('input[name="paidLeaveType"]').forEach(x=>x.addEventListener('change',setPaidLeaveMode));
+for(const id of ['grossRevenue','otherPlus','otherMinus','idleA','idleB']){
+  const el=$(id);
+  if(!el) continue;
+  el.addEventListener('input',()=>{
+    if(['otherPlus','otherMinus','idleA','idleB'].includes(id)){
+      const cleaned=String(el.value||'').replace(/[^0-9]/g,'');
+      if(el.value!==cleaned)el.value=cleaned;
+    }
+    updateRevenuePreview();
+  });
+}document.querySelectorAll('input[name="paidLeaveType"]').forEach(x=>x.addEventListener('change',setPaidLeaveMode));
 $('entryForm').addEventListener('submit',ev=>{
   ev.preventDefault();
   const paidLeaveUnits=Number(document.querySelector('input[name="paidLeaveType"]:checked')?.value||0);
