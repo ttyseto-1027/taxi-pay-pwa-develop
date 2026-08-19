@@ -8,7 +8,7 @@
 <meta content="タクシー乗務員向け給与概算シミュレーター" name="description"/>
 <title>DEVELOP_タクシー給与シミュレーター</title>
 <link href="manifest.json" rel="manifest"/>
-<link href="styles.css?v=20260819-06" rel="stylesheet"/>
+<link href="styles.css?v=20260819-07" rel="stylesheet"/>
 <script>
 (function(){
   'use strict';
@@ -52,6 +52,30 @@
 <button class="ghost" id="clearAuthDiagnostic" type="button">診断情報を消去</button>
 </div>
 </details>
+</div>
+</section>
+<section class="profile-diagnostic-mode" id="profileDiagnosticMode" hidden>
+<div class="profile-diagnostic-mode-inner">
+<div class="view-heading"><h2>利用者情報</h2><p>Googleログインを完了できなかったため、診断モードを表示しています。</p></div>
+<section class="card">
+<h2>ログイン診断</h2>
+<p class="profile-diagnostic-error-message" id="profileLoginFailureMessage">Googleログインを完了できませんでした。</p>
+<p class="note">この画面では本人の登録情報・給与・勤務実績は表示しません。端末とアプリの診断情報だけを確認できます。</p>
+<dl class="profile-list profile-app-info">
+<div><dt>Version</dt><dd id="diagModeAppVersion">—</dd></div>
+<div><dt>Build</dt><dd id="diagModeAppBuild">—</dd></div>
+<div><dt>公開日時</dt><dd id="diagModeAppReleasedAt">—</dd></div>
+<div><dt>Service Worker</dt><dd id="diagModeServiceWorker">確認中…</dd></div>
+<div><dt>Cache Version</dt><dd id="diagModeCacheVersion">—</dd></div>
+<div><dt>認証エラー</dt><dd id="diagModeAuthError">—</dd></div>
+</dl>
+<div class="actions profile-diagnostic-actions">
+<button type="button" id="copyLoginFailureDiagnostic">診断情報をコピー</button>
+<button type="button" id="retryGoogleLogin">Googleログインを再試行</button>
+<button class="ghost" type="button" id="rebuildLoginFailureCache">PWAキャッシュを再構築</button>
+</div>
+<p class="phase2-message" id="diagModeMessage" aria-live="polite"></p>
+</section>
 </div>
 </section>
 <header class="app-header no-print"><div class="header-brand"><h1>DEVELOP_タクシー給与シミュレーター</h1><p id="headerShift">勤務区分未設定</p></div><div class="header-controls"><span class="eligibility-badge" id="userEligibility"></span><span class="signed-in-user" id="signedInUser"></span><a class="ghost admin-link" hidden="" href="admin.html" id="adminPageLink">ユーザー管理</a><a class="ghost admin-link" hidden="" href="announcement.html" id="announcementPageLink">お知らせ管理</a><button aria-label="メニューを開く" class="icon-button menu-open-button" id="openAppMenu" type="button">☰</button></div></header>
@@ -136,7 +160,23 @@
 <details class="phase7-subaccordion"><summary><span>任意控除</span><small>組合費・共済費</small></summary><div class="phase7-subaccordion-body"><div class="form-grid"><label>組合費<input id="phase4UnionFee" inputmode="numeric" min="0" required="" step="1" type="number"/></label><label>共済費<input id="phase4MutualAidFee" inputmode="numeric" min="0" required="" step="1" type="number"/></label></div></div></details>
 <details class="phase7-subaccordion"><summary><span>その他控除</span><small>名称と金額を必要に応じて追加</small></summary><div class="phase7-subaccordion-body"><div id="phase4OtherDeductionRows"></div><button class="ghost" id="phase4AddOtherDeduction" type="button">その他控除を追加</button></div></details>
 <div aria-live="polite" class="phase2-message" id="phase4DeductionMessage"></div><div class="actions"><button type="submit">控除設定を保存</button></div></form></section>
-<section class="card"><h2>設定の保存・復元</h2><p>控除・扶養・有給・給与追加調整データをJSONファイルとして保存できます。通常の勤務実績は含みません。</p><div class="actions"><button id="phase3ExportSettings" type="button">設定ファイルを保存</button><label class="button-like secondary">設定ファイルから復元<input accept="application/json,.json" hidden="" id="phase3ImportSettings" type="file"/></label></div><div aria-live="polite" class="phase2-message" id="phase3BackupMessage"></div></section></section><section class="app-view" data-view-panel="profile" hidden=""><div class="view-heading"><h2>利用者情報</h2><p>運営側で登録された利用者情報を確認します。</p></div><section class="card" id="profileSummaryCard"><div class="profile-card-title"><h2>登録内容</h2></div><dl class="profile-list"><div><dt>氏名</dt><dd id="profileName">—</dd></div><div><dt>Googleアカウント</dt><dd id="profileEmail">—</dd></div><div><dt>乗務員番号</dt><dd id="profileDriverNumber">—</dd></div><div><dt>営業所</dt><dd id="profileOffice">—</dd></div><div><dt>勤務形態</dt><dd id="profileShiftType">—</dd></div><div><dt>組合員区分</dt><dd id="profileUnionStatus">—</dd></div><div><dt>利用状態</dt><dd id="profileUseStatus">—</dd></div></dl><p class="note" id="profilePermissionNote">乗務員番号、営業所、勤務形態、組合員区分、利用状態の変更は管理者が行います。</p></section></section><section class="app-view" data-view-panel="settings" hidden=""><div class="view-heading"><h2>設定</h2><p>アプリ全体の動作設定です。</p></div><section class="card"><h2>準備中</h2><p>バックアップ、復元、通知、キャッシュ、バージョン情報などを今後追加します。</p></section></section><section class="app-view" data-view-panel="help" hidden=""><div class="view-heading"><h2>ヘルプ</h2><p>操作方法と利用上の注意を確認します。</p></div><section class="card"><h2>このアプリについて</h2><p>給与支給額の概算を確認するためのテスト版です。実際の支給額は会社が発行する給与明細をご確認ください。</p><details><summary>ログインできない場合</summary><p>LINE内ブラウザではなく、SafariまたはChromeで公開URLを開いてください。</p></details></section></section></div><button hidden="" id="openSettings" type="button">設定</button></main>
+<section class="card"><h2>設定の保存・復元</h2><p>控除・扶養・有給・給与追加調整データをJSONファイルとして保存できます。通常の勤務実績は含みません。</p><div class="actions"><button id="phase3ExportSettings" type="button">設定ファイルを保存</button><label class="button-like secondary">設定ファイルから復元<input accept="application/json,.json" hidden="" id="phase3ImportSettings" type="file"/></label></div><div aria-live="polite" class="phase2-message" id="phase3BackupMessage"></div></section></section><section class="app-view" data-view-panel="profile" hidden=""><div class="view-heading"><h2>利用者情報</h2><p>登録内容と、この端末で動作しているアプリ情報を確認します。</p></div><section class="card" id="profileSummaryCard"><div class="profile-card-title"><h2>登録内容</h2></div><dl class="profile-list"><div><dt>氏名</dt><dd id="profileName">—</dd></div><div><dt>Googleアカウント</dt><dd id="profileEmail">—</dd></div><div><dt>乗務員番号</dt><dd id="profileDriverNumber">—</dd></div><div><dt>営業所</dt><dd id="profileOffice">—</dd></div><div><dt>勤務形態</dt><dd id="profileShiftType">—</dd></div><div><dt>組合員区分</dt><dd id="profileUnionStatus">—</dd></div><div><dt>利用状態</dt><dd id="profileUseStatus">—</dd></div></dl><p class="note" id="profilePermissionNote">乗務員番号、営業所、勤務形態、組合員区分、利用状態の変更は管理者が行います。</p></section>
+<section class="card profile-diagnostics-card" id="profileDiagnosticsCard">
+<div class="profile-card-title"><h2>アプリ・診断情報</h2></div>
+<p class="note">不具合のお問い合わせ時は「診断情報をコピー」を押して、表示された内容を管理者へお知らせください。給与額・勤務実績はコピーされません。</p>
+<dl class="profile-list profile-app-info">
+<div><dt>Version</dt><dd id="profileAppVersion">—</dd></div>
+<div><dt>Build</dt><dd id="profileAppBuild">—</dd></div>
+<div><dt>公開日時</dt><dd id="profileAppReleasedAt">—</dd></div>
+<div><dt>Service Worker</dt><dd id="profileAppServiceWorker">確認中…</dd></div>
+<div><dt>Cache Version</dt><dd id="profileAppCacheVersion">—</dd></div>
+</dl>
+<div class="actions profile-diagnostic-actions">
+<button type="button" id="copyProfileDiagnostic">診断情報をコピー</button>
+<button class="ghost" type="button" id="rebuildProfileCache">PWAキャッシュを再構築</button>
+</div>
+<p class="phase2-message" id="profileDiagnosticMessage" aria-live="polite"></p>
+</section></section><section class="app-view" data-view-panel="settings" hidden=""><div class="view-heading"><h2>設定</h2><p>アプリ全体の動作設定です。</p></div><section class="card"><h2>準備中</h2><p>バックアップ、復元、通知、キャッシュ、バージョン情報などを今後追加します。</p></section></section><section class="app-view" data-view-panel="help" hidden=""><div class="view-heading"><h2>ヘルプ</h2><p>操作方法と利用上の注意を確認します。</p></div><section class="card"><h2>このアプリについて</h2><p>給与支給額の概算を確認するためのテスト版です。実際の支給額は会社が発行する給与明細をご確認ください。</p><details><summary>ログインできない場合</summary><p>LINE内ブラウザではなく、SafariまたはChromeで公開URLを開いてください。</p></details></section></section></div><button hidden="" id="openSettings" type="button">設定</button></main>
 <dialog class="modal" id="onboardingDialog"><form id="onboardingForm" method="dialog"><h2>最初に勤務区分を選択してください</h2><label>勤務区分<select id="onboardingShiftType" required=""></select></label><div class="rule-box" id="onboardingRule"></div><label class="agree"><input id="agreeDisclaimer" required="" type="checkbox"/>免責事項を確認しました</label><button id="completeOnboarding">利用を開始</button><div class="app-disclaimer" role="note">
 <p class="disclaimer-title">【免責事項】</p>
 <p>本アプリは給与支給額の概算を計算するシミュレーションツールです。</p>
@@ -167,4 +207,4 @@
 <label>運賃改定係数<input id="fareRevisionCoefficient" step="0.0001" type="number"/></label><label>給与算定係数<input id="payRevenueCoefficient" step="0.0001" type="number"/></label><label>消費税率（%）<input id="taxRate" step="0.1" type="number"/></label>
 <label>模範勤務手当/月<input id="modelWorkAllowance" type="number"/></label><label>無事故手当/乗務<input id="accidentFreeAllowance" type="number"/></label><label>無違反手当/乗務<input id="violationFreeAllowance" type="number"/></label>
 <label>法定超 時間外割増（%）<input id="statutoryOvertimeRate" step="0.01" type="number"/></label><label>所定超 時間外割増（%）<input id="scheduledOvertimeRate" step="0.01" type="number"/></label><label>月60時間超 割増（%）<input id="over60Rate" step="0.01" type="number"/></label><label>法定休日割増（%）<input id="statutoryHolidayRate" step="0.01" type="number"/></label><label>法定外休日割増（%）<input id="nonStatutoryHolidayRate" step="0.01" type="number"/></label><label>深夜割増（%）<input id="nightRate" step="0.01" type="number"/></label></div><div class="actions"><button id="saveAdmin">開発者設定を保存</button></div></form></dialog>
-<script src="app-meta.js?v=20260819-06"></script><script src="phase75-ops.js?v=20260819-06"></script><script src="diagnostics.js?v=20260817-phase75-app-name"></script><script src="firebase-config.js?v=20260728-phase0-06-ios-popup-fix"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260819-06"></script><script src="v13-features.js?v=20260819-06"></script><script src="boot.js?v=20260805-phase7-r6"></script><script src="phase1-ui.js?v=20260805-phase7-r6"></script><script src="phase2-user-settings.js?v=20260729-phase2-display-only" type="module"></script><script src="phase3-personal-settings.js?v=20260729-phase3-personal-settings"></script><script src="phase4-payroll-adjustments.js?v=20260731-phase4-deductions-payments"></script><script src="phase7-ui.js?v=20260805-phase7-r6"></script></body></html>
+<script src="app-meta.js?v=20260819-07"></script><script src="phase75-ops.js?v=20260819-07"></script><script src="diagnostics.js?v=20260819-07"></script><script src="firebase-config.js?v=20260819-07"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260819-07"></script><script src="v13-features.js?v=20260819-07"></script><script src="profile-diagnostics.js?v=20260819-07"></script><script src="boot.js?v=20260819-07"></script><script src="phase1-ui.js?v=20260805-phase7-r6"></script><script src="phase2-user-settings.js?v=20260729-phase2-display-only" type="module"></script><script src="phase3-personal-settings.js?v=20260729-phase3-personal-settings"></script><script src="phase4-payroll-adjustments.js?v=20260731-phase4-deductions-payments"></script><script src="phase7-ui.js?v=20260805-phase7-r6"></script></body></html>

@@ -782,3 +782,52 @@ tr[hidden] { display: none !important; }
   margin:4px 0;
   overflow-wrap:anywhere;
 }
+
+
+/* ============================================================
+   Phase7.5 利用者情報・診断モード
+   ============================================================ */
+.profile-diagnostics-card{
+  margin-top:14px;
+}
+.profile-app-info dd{
+  overflow-wrap:anywhere;
+}
+.profile-diagnostic-actions{
+  margin-top:12px;
+  flex-wrap:wrap;
+}
+.profile-diagnostic-mode{
+  min-height:100vh;
+  padding:24px;
+  background:#f3f7f8;
+  position:relative;
+  z-index:15000;
+}
+.profile-diagnostic-mode[hidden]{
+  display:none !important;
+}
+.profile-diagnostic-mode-inner{
+  width:min(760px,100%);
+  margin:0 auto;
+}
+.profile-diagnostic-error-message{
+  padding:10px 12px;
+  border-radius:8px;
+  background:#fff1f0;
+  border:1px solid #e8aaa5;
+  color:#8c2c25;
+  font-weight:700;
+}
+@media(max-width:560px){
+  .profile-diagnostic-mode{
+    padding:14px;
+  }
+  .profile-diagnostic-actions{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  .profile-diagnostic-actions button{
+    width:100%;
+  }
+}

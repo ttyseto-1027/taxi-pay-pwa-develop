@@ -18,6 +18,11 @@
     center.appendChild(box);
     const duration = kind === 'error' ? 12000 : (code === 'AUTH-SIGNIN-OK' || code === 'AUTH-SIGNOUT-OK' ? 1000 : 4500);
     setTimeout(()=>box.remove(), duration);
+    if(kind === 'error' && (String(code).startsWith('AUTH-') || code === 'APP-MODULE-01')){
+      window.dispatchEvent(new CustomEvent('taxipay:auth-failure',{
+        detail:{message,code,detail:String(detail||''),at:item.at}
+      }));
+    }
     return item;
   }
   function compatible(){

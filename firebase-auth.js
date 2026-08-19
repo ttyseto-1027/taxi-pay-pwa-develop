@@ -28,7 +28,7 @@ import {
 const DIAG_KEY = 'taxiPayAuthDiagnosticV17';
 const ATTEMPT_KEY = 'taxiPayAuthAttemptV1';
 const MAX_STEPS = 120;
-const DIAGNOSTIC_BUILD = 'phase7.5-app-registered-name-20260817-01';
+const DIAGNOSTIC_BUILD = 'phase7.5-profile-diagnostics-20260819-07';
 
 function safeStorageGet() {
   try { return JSON.parse(localStorage.getItem(DIAG_KEY) || '{}'); } catch { return {}; }
