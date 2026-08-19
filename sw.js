@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260819-05-coherent-runtime-release';
+const CACHE = 'taxi-pay-v1.4-beta-20260819-06-system-info-auth-recovery';
 
 const FILES = [
   './',

@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260819-05",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260819-05-coherent-runtime-release",
-  "releasedAtJst": "2026/08/19 12:27:27 JST",
+  "build": "20260819-06",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260819-06-system-info-auth-recovery",
+  "releasedAtJst": "2026/08/19 12:33:44 JST",
   "environment": "DEVELOP"
 }

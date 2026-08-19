@@ -1,243 +1,275 @@
-(function(){
-  'use strict';
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  browserLocalPersistence,
+  setPersistence,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import {
+  getFirestore,
+  doc,
+  getDoc
+} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
-  const $ = id => document.getElementById(id);
-  const meta = window.TAXI_PAY_APP_META || {};
-  const APP_CACHE_PREFIX = 'taxi-pay-';
+const config = window.TAXI_PAY_FIREBASE_CONFIG || {};
+const app = initializeApp(config);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
-  function setText(id, value){
-    const el = $(id);
-    if(el) el.textContent = value ?? '—';
+const gate = document.getElementById('systemInfoAuthGate');
+const check = document.getElementById('authCheckingPanel');
+const status = document.getElementById('systemInfoStatus');
+const list = document.getElementById('systemInfoList');
+const cacheListHost = document.getElementById('cacheList');
+
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[c]));
+}
+
+function showGate(msg='管理者のGoogleアカウントでログインしてください。'){
+  document.body.classList.remove('auth-checking');
+  check.hidden = true;
+  gate.hidden = false;
+  const msgNode = document.getElementById('systemInfoMessage');
+  if(msgNode) msgNode.textContent = msg;
+}
+
+function showPage(){
+  document.body.classList.remove('auth-checking');
+  check.hidden = true;
+  gate.hidden = true;
+}
+
+function setStatus(msg=''){
+  if(status) status.textContent = msg;
+}
+
+function formatError(err){
+  return err?.message || String(err || '不明なエラー');
+}
+
+async function ensureServiceWorker(){
+  if(!('serviceWorker' in navigator)){
+    return {
+      label:'非対応',
+      state:'このブラウザはService Workerに対応していません。',
+      registration:null
+    };
   }
 
-  function formatError(err){
-    if(!err) return '不明なエラー';
-    return err.message || String(err);
-  }
+  try{
+    let reg = await navigator.serviceWorker.getRegistration('./');
 
-  async function ensureServiceWorkerRegistered(){
-    if(!('serviceWorker' in navigator)){
-      return {
-        supported:false,
-        status:'unsupported',
-        registration:null,
-        error:null
-      };
-    }
-
-    setText('serviceWorkerStatus','登録中…');
-    setText('serviceWorkerState','確認中…');
-
-    try{
+    if(!reg){
       const swUrl = new URL('./sw.js', location.href);
-
-      let reg = await navigator.serviceWorker.getRegistration('./');
-
-      if(!reg){
-        reg = await navigator.serviceWorker.register(swUrl.pathname, {
-          scope:'./',
-          updateViaCache:'none'
-        });
-      }
-
-      try{
-        await reg.update();
-      }catch(_){}
-
-      // ready はアクティブなService Workerが制御可能になるまで待つ。
-      // ただし初回登録直後に永遠に待たないようタイムアウトを設ける。
-      const ready = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise(resolve => setTimeout(() => resolve(null), 5000))
-      ]);
-
-      reg = ready || reg;
-
-      const worker =
-        reg?.active ||
-        reg?.waiting ||
-        reg?.installing ||
-        null;
-
-      return {
-        supported:true,
-        status:'registered',
-        registration:reg,
-        worker,
-        error:null
-      };
-    }catch(err){
-      return {
-        supported:true,
-        status:'failed',
-        registration:null,
-        worker:null,
-        error:err
-      };
-    }
-  }
-
-  async function readCacheInfo(){
-    if(!('caches' in window)){
-      return {supported:false, names:[], appNames:[], error:null};
+      reg = await navigator.serviceWorker.register(swUrl.pathname, {
+        scope:'./',
+        updateViaCache:'none'
+      });
     }
 
-    try{
-      const names = await caches.keys();
-      const appNames = names.filter(name=>name.startsWith(APP_CACHE_PREFIX));
-      return {supported:true, names, appNames, error:null};
-    }catch(err){
-      return {supported:true, names:[], appNames:[], error:err};
-    }
-  }
+    try{ await reg.update(); }catch(_){}
 
-  function renderServiceWorkerInfo(result){
-    if(!result.supported){
-      setText('serviceWorkerStatus','非対応');
-      setText('serviceWorkerState','このブラウザはService Workerに対応していません');
-      return;
-    }
+    const readyReg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise(resolve => setTimeout(() => resolve(null), 5000))
+    ]);
 
-    if(result.status === 'failed'){
-      setText('serviceWorkerStatus','登録失敗');
-      setText('serviceWorkerState',formatError(result.error));
-      return;
-    }
-
-    const reg = result.registration;
-    const worker = result.worker;
-
-    setText('serviceWorkerStatus','登録済み');
+    reg = readyReg || reg;
+    const worker = reg?.active || reg?.waiting || reg?.installing || null;
+    let workerState = '登録済み（Worker状態取得待ち）';
 
     if(worker){
-      const state = worker.state || '状態不明';
       const kind =
-        reg?.active === worker ? 'active' :
-        reg?.waiting === worker ? 'waiting' :
-        reg?.installing === worker ? 'installing' :
+        reg.active === worker ? 'active' :
+        reg.waiting === worker ? 'waiting' :
+        reg.installing === worker ? 'installing' :
         'worker';
-      setText('serviceWorkerState',`${kind} / ${state}`);
-    }else{
-      setText('serviceWorkerState','登録済み（Worker状態取得待ち）');
+      workerState = `${kind} / ${worker.state || '状態不明'}`;
     }
+
+    return {label:'登録済み', state:workerState, registration:reg};
+
+  }catch(err){
+    return {label:'登録失敗', state:formatError(err), registration:null};
+  }
+}
+
+async function getCacheNames(){
+  if(!('caches' in window)){
+    return {names:[], message:'Cache Storageはこのブラウザで利用できません。'};
   }
 
-  function renderCacheInfo(cacheInfo){
-    const host = $('cacheList');
-    if(!host) return;
+  try{
+    const names = await caches.keys();
+    const appNames = names.filter(name => name.startsWith('taxi-pay-'));
+    return {
+      names:appNames,
+      message:appNames.length ? '' : 'このアプリのキャッシュはありません。'
+    };
+  }catch(err){
+    return {
+      names:[],
+      message:`キャッシュ情報を取得できませんでした：${formatError(err)}`
+    };
+  }
+}
 
-    host.innerHTML = '';
+function renderRows(rows){
+  if(!list) return;
+  list.innerHTML = rows
+    .map(([k,v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v || '—')}</dd></div>`)
+    .join('');
+}
 
-    if(!cacheInfo.supported){
-      host.textContent = 'Cache Storageはこのブラウザで利用できません。';
-      return;
-    }
+function renderCaches(cacheInfo){
+  if(!cacheListHost) return;
 
-    if(cacheInfo.error){
-      host.textContent = `キャッシュ情報を取得できませんでした：${formatError(cacheInfo.error)}`;
-      return;
-    }
-
-    if(cacheInfo.appNames.length === 0){
-      host.textContent = 'このアプリのキャッシュはありません。';
-      return;
-    }
-
-    const ul = document.createElement('ul');
-    ul.className = 'system-cache-list';
-    cacheInfo.appNames.forEach(name=>{
-      const li = document.createElement('li');
-      li.textContent = name;
-      ul.appendChild(li);
-    });
-    host.appendChild(ul);
+  if(!cacheInfo.names.length){
+    cacheListHost.innerHTML = `<p>${esc(cacheInfo.message || 'キャッシュはありません。')}</p>`;
+    return;
   }
 
-  function renderStaticInfo(){
-    setText('systemVersion',meta.version || '—');
-    setText('systemBuild',meta.build || '—');
-    setText('systemEnvironment',meta.environment || '—');
-    setText('systemReleasedAt',meta.releasedAtJst || '—');
-    setText('systemCacheVersion',meta.cacheVersion || '—');
-    setText('systemFirebaseProjectId',
-      window.TAXI_PAY_FIREBASE_CONFIG?.projectId || '—'
-    );
-    setText('systemCurrentUrl',location.href);
-    setText('systemBrowser',navigator.userAgent || '—');
+  cacheListHost.innerHTML = cacheInfo.names
+    .map(name => `<p><code>${esc(name)}</code></p>`)
+    .join('');
+}
 
-    const isStandalone =
-      window.matchMedia?.('(display-mode: standalone)').matches ||
-      window.navigator.standalone === true;
-    setText('systemPwaMode',isStandalone ? 'はい' : 'いいえ');
+async function renderDiagnostics(){
+  setStatus('システム情報を取得しています…');
+
+  const meta = window.TAXI_PAY_APP_META || {};
+  const swInfo = await ensureServiceWorker();
+  const cacheInfo = await getCacheNames();
+
+  renderRows([
+    ['Version', meta.version],
+    ['Build', meta.build],
+    ['Environment', meta.environment],
+    ['公開日時', meta.releasedAtJst],
+    ['Cache Version', meta.cacheVersion],
+    ['Service Worker', swInfo.label],
+    ['Service Worker状態', swInfo.state],
+    ['Firebase projectId', config.projectId || '—'],
+    ['現在URL', location.href],
+    ['ブラウザ', navigator.userAgent],
+    ['PWA起動',
+      matchMedia('(display-mode: standalone)').matches ||
+      navigator.standalone === true ? 'はい' : 'いいえ'
+    ]
+  ]);
+
+  renderCaches(cacheInfo);
+  setStatus('情報を更新しました。');
+}
+
+async function rebuildPwaCache(){
+  const btn = document.getElementById('rebuildPwaCache');
+
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = '再構築中…';
   }
 
-  async function refreshDiagnostics(){
-    const btn = $('refreshSystemInfo');
+  try{
+    setStatus('PWAキャッシュを再構築しています…');
+
+    if('caches' in window){
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter(name => name.startsWith('taxi-pay-'))
+          .map(name => caches.delete(name))
+      );
+    }
+
+    const swInfo = await ensureServiceWorker();
+
+    if(swInfo.registration){
+      try{
+        if(swInfo.registration.waiting){
+          swInfo.registration.waiting.postMessage({type:'SKIP_WAITING'});
+        }
+        await swInfo.registration.update();
+      }catch(_){}
+    }
+
+    await renderDiagnostics();
+    setStatus('PWAキャッシュの再構築が完了しました。');
+
+  }catch(err){
+    setStatus(`PWAキャッシュを再構築できませんでした：${formatError(err)}`);
+  }finally{
     if(btn){
-      btn.disabled = true;
-      btn.textContent = '情報を取得中…';
+      btn.disabled = false;
+      btn.textContent = 'PWAキャッシュを再構築';
     }
+  }
+}
 
-    renderStaticInfo();
-    setText('serviceWorkerStatus','登録中…');
-    setText('serviceWorkerState','確認中…');
+document.getElementById('systemInfoLogin')?.addEventListener('click', async ()=>{
+  try{
+    await setPersistence(auth, browserLocalPersistence);
+    await signInWithPopup(auth, provider);
+  }catch(err){
+    showGate(formatError(err));
+  }
+});
 
-    const swResult = await ensureServiceWorkerRegistered();
-    renderServiceWorkerInfo(swResult);
+document.getElementById('systemInfoLogout')?.addEventListener('click', async ()=>{
+  await signOut(auth);
+});
 
-    // Service Worker確認後にキャッシュを取得する。
-    const cacheInfo = await readCacheInfo();
-    renderCacheInfo(cacheInfo);
+document.getElementById('refreshSystemInfo')?.addEventListener('click', async ()=>{
+  const btn = document.getElementById('refreshSystemInfo');
 
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = '情報を取得中…';
+  }
+
+  try{
+    await renderDiagnostics();
+  }finally{
     if(btn){
       btn.disabled = false;
       btn.textContent = '情報を再取得';
     }
   }
+});
 
-  async function rebuildPwaCache(){
-    const btn = $('rebuildPwaCache');
-    if(btn){
-      btn.disabled = true;
-      btn.textContent = '再構築中…';
+document.getElementById('rebuildPwaCache')?.addEventListener('click', rebuildPwaCache);
+
+onAuthStateChanged(auth, async user => {
+  try{
+    if(!user){
+      showGate();
+      return;
     }
 
-    try{
-      if('caches' in window){
-        const names = await caches.keys();
-        await Promise.all(
-          names
-            .filter(name=>name.startsWith(APP_CACHE_PREFIX))
-            .map(name=>caches.delete(name))
-        );
-      }
+    const adminSnap = await getDoc(doc(db, 'admins', user.uid));
 
-      const sw = await ensureServiceWorkerRegistered();
-
-      if(sw.registration){
-        try{
-          if(sw.registration.waiting){
-            sw.registration.waiting.postMessage({type:'SKIP_WAITING'});
-          }
-          await sw.registration.update();
-        }catch(_){}
-      }
-
-      await refreshDiagnostics();
-      alert('PWAキャッシュの再構築処理が完了しました。');
-    }catch(err){
-      alert(`PWAキャッシュを再構築できませんでした。\n${formatError(err)}`);
-    }finally{
-      if(btn){
-        btn.disabled = false;
-        btn.textContent = 'PWAキャッシュを再構築';
-      }
+    if(!adminSnap.exists() || adminSnap.data().enabled === false){
+      await signOut(auth);
+      showGate('管理者権限がありません。');
+      return;
     }
+
+    showPage();
+    await renderDiagnostics();
+
+  }catch(err){
+    console.error('システム情報の認証確認に失敗しました。', err);
+    showGate(`認証状態を確認できませんでした：${formatError(err)}`);
   }
-
-  document.addEventListener('DOMContentLoaded',()=>{
-    $('refreshSystemInfo')?.addEventListener('click',refreshDiagnostics);
-    $('rebuildPwaCache')?.addEventListener('click',rebuildPwaCache);
-    refreshDiagnostics();
-  });
-})();
+});
