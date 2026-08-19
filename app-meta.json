@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260819-03",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260819-03-revenue-ui-update-message",
-  "releasedAtJst": "2026/08/19 01:25:11 JST",
+  "build": "20260819-04",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260819-04-system-info-sw-diagnostic",
+  "releasedAtJst": "2026/08/19 12:18:17 JST",
   "environment": "DEVELOP"
 }

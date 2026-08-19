@@ -771,3 +771,14 @@ tr[hidden] { display: none !important; }
     text-align:center;
   }
 }
+
+
+/* システム情報診断 */
+.system-cache-list{
+  margin:0;
+  padding-left:20px;
+}
+.system-cache-list li{
+  margin:4px 0;
+  overflow-wrap:anywhere;
+}
