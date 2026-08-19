@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260819-04-system-info-sw-diagnostic';
+const CACHE = 'taxi-pay-v1.4-beta-20260819-05-coherent-runtime-release';
 
 const FILES = [
   './',
@@ -65,17 +65,40 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  const isNavigation = event.request.mode === 'navigate';
+  const isRuntimeControlFile =
+    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|sw\.js)$/.test(url.pathname);
+
+  // 更新判定に使うファイルとHTMLナビゲーションは常にネットワーク優先・HTTPキャッシュ不使用。
+  if (isNavigation || isRuntimeControlFile) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(event.request).then((response) => response || caches.match('./index.html'))
+        )
+    );
+    return;
+  }
+
+  // その他の静的ファイルもネットワーク優先。
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-cache' })
       .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        }
         return response;
       })
       .catch(() =>
-        caches
-          .match(event.request)
-          .then((response) => response || caches.match('./index.html'))
+        caches.match(event.request).then((response) => response || caches.match('./index.html'))
       )
   );
 });
