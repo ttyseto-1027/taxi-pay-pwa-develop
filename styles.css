@@ -685,3 +685,89 @@ tr[hidden] { display: none !important; }
   z-index:10000;
   flex-shrink:0;
 }
+
+
+/* ============================================================
+   営収入力UI再編 2026-08-19
+   総営収 → 営収調整 → 結果
+   ============================================================ */
+
+.revenue-source-field{
+  grid-column:1/-1;
+  max-width:360px;
+}
+
+.revenue-adjustment-section{
+  grid-column:1/-1;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:12px;
+  background:#f8fafb;
+}
+
+.revenue-adjustment-section h3{
+  margin:0 0 4px;
+  font-size:.95rem;
+  color:var(--primary);
+}
+
+.revenue-adjustment-guide{
+  margin:0 0 10px;
+}
+
+.revenue-adjustment-section .revenue-adjustment-grid{
+  margin-top:0;
+}
+
+.revenue-result-grid{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+.revenue-result-grid input[readonly]{
+  font-weight:750;
+  background:#edf7f9;
+}
+
+@media(max-width:640px){
+  .revenue-result-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+
+/* 最新版取得完了メッセージ */
+.app-update-success{
+  position:fixed;
+  top:14px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:20000;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  max-width:calc(100vw - 24px);
+  padding:12px 18px;
+  border:1px solid #2b8a5a;
+  border-radius:10px;
+  background:#ecfff4;
+  box-shadow:0 4px 18px rgba(0,0,0,.16);
+  color:#185d3d;
+  transition:opacity .3s ease, transform .3s ease;
+}
+
+.app-update-success.is-hiding{
+  opacity:0;
+  transform:translate(-50%,-8px);
+}
+
+@media(max-width:520px){
+  .app-update-success{
+    width:calc(100vw - 24px);
+    justify-content:center;
+    flex-wrap:wrap;
+    text-align:center;
+  }
+}

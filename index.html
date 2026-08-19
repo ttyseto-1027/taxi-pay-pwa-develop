@@ -8,7 +8,7 @@
 <meta content="タクシー乗務員向け給与概算シミュレーター" name="description"/>
 <title>DEVELOP_タクシー給与シミュレーター</title>
 <link href="manifest.json" rel="manifest"/>
-<link href="styles.css?v=20260819-02" rel="stylesheet"/>
+<link href="styles.css?v=20260819-03" rel="stylesheet"/>
 <script>
 (function(){
   'use strict';
@@ -62,11 +62,11 @@
 <form class="entry-form" id="entryForm">
 <label>勤務日<input id="date" required="" type="date"/></label>
 <fieldset class="paid-leave-selector"><legend>勤務・有給区分</legend><div class="paid-leave-radios"><label><input checked="" name="paidLeaveType" type="radio" value="0"/>通常勤務</label><label><input name="paidLeaveType" type="radio" value="1"/>1有給</label><label><input name="paidLeaveType" type="radio" value="2"/>2有給</label></div><p class="note" id="paidLeaveEntryNote"></p></fieldset>
-<label>総営収（税込）<div class="money-input"><input id="grossRevenue" inputmode="numeric" min="0" required="" step="1" type="number"/><span>円</span></div></label>
-<label>給与計算用営収（自動）<div class="money-input"><input id="adjustedGrossRevenue" readonly="" type="text"/><span>円</span></div></label>
-<label>税抜営収（自動）<div class="money-input"><input id="netRevenue" readonly="" type="text"/><span>円</span></div></label>
-<details class="revenue-adjustment-details">
-<summary>営収調整の内訳を入力（必要な場合）</summary>
+<label class="revenue-source-field">総営収（税込）<div class="money-input"><input id="grossRevenue" inputmode="numeric" min="0" required="" step="1" type="number"/><span>円</span></div></label>
+
+<section class="revenue-adjustment-section" aria-labelledby="revenueAdjustmentTitle">
+<h3 id="revenueAdjustmentTitle">営収調整</h3>
+<p class="note revenue-adjustment-guide">日常点検表のA空転・B空転・その他（＋）・その他（－）の金額をそのまま入力してください。記載がない項目は0円です。</p>
 <div class="revenue-adjustment-grid">
 <label>A空転<div class="money-input"><input id="idleA" inputmode="numeric" pattern="[0-9]*" type="text" value="0"/><span>円</span></div></label>
 <label>B空転<div class="money-input"><input id="idleB" inputmode="numeric" pattern="[0-9]*" type="text" value="0"/><span>円</span></div></label>
@@ -74,8 +74,12 @@
 <label>その他（－）<div class="money-input"><input id="otherMinus" inputmode="numeric" pattern="[0-9]*" type="text" value="0"/><span>円</span></div></label>
 </div>
 <p class="revenue-adjustment-formula" id="revenueAdjustmentFormula">給与計算用営収 ＝ 総営収 － A空転 － B空転 ＋ その他（＋）－ その他（－）</p>
-<p class="note">日常点検表に記載された金額を、そのまま入力してください。調整がない項目は0円のままで構いません。</p>
-</details>
+</section>
+
+<div class="revenue-result-grid">
+<label>給与計算用営収（税込・自動）<div class="money-input"><input id="adjustedGrossRevenue" readonly="" type="text"/><span>円</span></div></label>
+<label>税抜営収（自動）<div class="money-input"><input id="netRevenue" readonly="" type="text"/><span>円</span></div></label>
+</div>
 <label>出勤時刻（アルコール）<input id="clockIn" required="" type="time"/></label>
 <label>退勤時刻（アルコール）<input id="clockOut" required="" type="time"/></label>
 <label>休日区分<select id="holidayType"><option value="normal">通常勤務</option><option value="statutory">法定休日出勤</option><option value="nonstatutory">法定外休日出勤</option></select></label>
@@ -163,4 +167,4 @@
 <label>運賃改定係数<input id="fareRevisionCoefficient" step="0.0001" type="number"/></label><label>給与算定係数<input id="payRevenueCoefficient" step="0.0001" type="number"/></label><label>消費税率（%）<input id="taxRate" step="0.1" type="number"/></label>
 <label>模範勤務手当/月<input id="modelWorkAllowance" type="number"/></label><label>無事故手当/乗務<input id="accidentFreeAllowance" type="number"/></label><label>無違反手当/乗務<input id="violationFreeAllowance" type="number"/></label>
 <label>法定超 時間外割増（%）<input id="statutoryOvertimeRate" step="0.01" type="number"/></label><label>所定超 時間外割増（%）<input id="scheduledOvertimeRate" step="0.01" type="number"/></label><label>月60時間超 割増（%）<input id="over60Rate" step="0.01" type="number"/></label><label>法定休日割増（%）<input id="statutoryHolidayRate" step="0.01" type="number"/></label><label>法定外休日割増（%）<input id="nonStatutoryHolidayRate" step="0.01" type="number"/></label><label>深夜割増（%）<input id="nightRate" step="0.01" type="number"/></label></div><div class="actions"><button id="saveAdmin">開発者設定を保存</button></div></form></dialog>
-<script src="app-meta.js?v=20260819-02"></script><script src="phase75-ops.js?v=20260819-02"></script><script src="diagnostics.js?v=20260817-phase75-app-name"></script><script src="firebase-config.js?v=20260728-phase0-06-ios-popup-fix"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260819-02"></script><script src="v13-features.js?v=20260819-02"></script><script src="boot.js?v=20260805-phase7-r6"></script><script src="phase1-ui.js?v=20260805-phase7-r6"></script><script src="phase2-user-settings.js?v=20260729-phase2-display-only" type="module"></script><script src="phase3-personal-settings.js?v=20260729-phase3-personal-settings"></script><script src="phase4-payroll-adjustments.js?v=20260731-phase4-deductions-payments"></script><script src="phase7-ui.js?v=20260805-phase7-r6"></script></body></html>
+<script src="app-meta.js?v=20260819-03"></script><script src="phase75-ops.js?v=20260819-03"></script><script src="diagnostics.js?v=20260817-phase75-app-name"></script><script src="firebase-config.js?v=20260728-phase0-06-ios-popup-fix"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260819-03"></script><script src="v13-features.js?v=20260819-03"></script><script src="boot.js?v=20260805-phase7-r6"></script><script src="phase1-ui.js?v=20260805-phase7-r6"></script><script src="phase2-user-settings.js?v=20260729-phase2-display-only" type="module"></script><script src="phase3-personal-settings.js?v=20260729-phase3-personal-settings"></script><script src="phase4-payroll-adjustments.js?v=20260731-phase4-deductions-payments"></script><script src="phase7-ui.js?v=20260805-phase7-r6"></script></body></html>

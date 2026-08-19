@@ -245,7 +245,6 @@ function clearEntry(){
   $('editingId').value='';
   if($('adjustedGrossRevenue'))$('adjustedGrossRevenue').value='';
   $('netRevenue').value='';
-  const details=document.querySelector('.revenue-adjustment-details');if(details)details.open=false;
   const normal=document.querySelector('input[name="paidLeaveType"][value="0"]');if(normal)normal.checked=true;
   setPaidLeaveMode();
 }
@@ -326,8 +325,6 @@ $('entriesTable').addEventListener('click',ev=>{const edit=ev.target.dataset.edi
   $('otherMinus').value=Number(e.otherMinus||0);
   $('idleA').value=Number(e.idleA ?? e.idleAdjustmentA ?? 0);
   $('idleB').value=Number(e.idleB ?? e.idleAdjustmentB ?? 0);
-  const details=document.querySelector('.revenue-adjustment-details');
-  if(details)details.open=!!(Number(e.otherPlus||0)||Number(e.otherMinus||0)||Number(e.idleA||0)||Number(e.idleB||0));
   $('clockIn').value=e.clockIn;$('clockOut').value=e.clockOut;
   setBreak('normalBreak',e.normalBreakMinutes);setBreak('nightBreak',e.nightBreakMinutes);
   $('holidayType').value=e.holidayType;$('hadAccident').checked=e.hadAccident;$('hadViolation').checked=e.hadViolation;
