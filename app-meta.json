@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260819-07",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260819-07-profile-diagnostics",
-  "releasedAtJst": "2026/08/19 12:52:36 JST",
+  "build": "20260820-01",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260820-01-drive-manual-sync",
+  "releasedAtJst": "2026/08/20 11:53:00 JST",
   "environment": "DEVELOP"
 }

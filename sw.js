@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260819-07-profile-diagnostics';
+const CACHE = 'taxi-pay-v1.4-beta-20260820-01-drive-manual-sync';
 
 const FILES = [
   './',
@@ -25,7 +25,10 @@ const FILES = [
   './system-info.html',
   './phase75-ops.js',
   './app-meta.json',
-  './app-meta.js'
+  './app-meta.js',
+  './google-drive-config.js',
+  './phase56-drive-backup.js',
+  './profile-diagnostics.js'
 ];
 
 
