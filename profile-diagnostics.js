@@ -130,6 +130,29 @@
     }
   }
 
+  async function copyText(text,messageId){
+    const message=$(messageId);
+    try{await navigator.clipboard.writeText(text);if(message)message.textContent='アカウント変更申請をコピーしました。';}
+    catch{window.prompt('下の内容をコピーして管理者へお知らせください。',text);if(message)message.textContent='アカウント変更申請を表示しました。';}
+  }
+
+  async function copyAccountChangeRequest(){
+    const email=String($('accountChangeNewEmail')?.value||'').trim();
+    if(!/^\S+@\S+\.\S+$/.test(email)){const m=$('accountChangeMessage');if(m)m.textContent='変更先Googleアカウントのメールアドレスを確認してください。';return;}
+    const p=window.TaxiPayCurrentProfile||{};
+    const text=['【Googleアカウント変更申請】',`申請日時: ${new Date().toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})} JST`,`氏名: ${p.name||p.displayName||'—'}`,`乗務員番号: ${p.driverNumber||'—'}`,`現在のGoogleアカウント: ${p.email||'—'}`,`変更先Googleアカウント: ${email}`,'','※この申請だけでは変更されません。管理者による本人確認が必要です。'].join('\\n');
+    await copyText(text,'accountChangeMessage');
+  }
+
+  async function copyLoginFailureChangeRequest(){
+    const name=String($('diagChangeName')?.value||'').trim(),driver=String($('diagChangeDriverNumber')?.value||'').trim(),email=String($('diagChangeNewEmail')?.value||'').trim();
+    const m=$('diagChangeMessage');
+    if(!name||!driver||!/^\S+@\S+\.\S+$/.test(email)){if(m)m.textContent='氏名・乗務員番号・変更先Googleアカウントを確認してください。';return;}
+    const report=await buildReport();
+    const text=['【旧Googleアカウント ログイン不能・変更申請】',`申請日時: ${new Date().toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})} JST`,`氏名: ${name}`,`乗務員番号: ${driver}`,`変更先Googleアカウント: ${email}`,'','【診断ログ】',report,'','※管理者が本人へ「この端末からの変更申請で間違いないか」を確認した後に変更処理してください。'].join('\\n');
+    await copyText(text,'diagChangeMessage');
+  }
+
   async function rebuildCache(messageId){
     const message = $(messageId);
     if(message) message.textContent = 'PWAキャッシュを再構築しています…';
@@ -256,6 +279,8 @@
     $('rebuildProfileCache')?.addEventListener('click',()=>rebuildCache('profileDiagnosticMessage'));
     $('rebuildLoginFailureCache')?.addEventListener('click',()=>rebuildCache('diagModeMessage'));
     $('retryGoogleLogin')?.addEventListener('click',retryLogin);
+    $('copyAccountChangeRequest')?.addEventListener('click',copyAccountChangeRequest);
+    $('copyLoginFailureChangeRequest')?.addEventListener('click',copyLoginFailureChangeRequest);
     renderAppInfo();
   });
 

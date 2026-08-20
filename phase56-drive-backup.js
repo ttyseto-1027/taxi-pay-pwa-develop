@@ -1,137 +1,96 @@
 'use strict';
 (() => {
-  const CLIENT_ID = String(window.TAXI_PAY_GOOGLE_DRIVE_CONFIG?.clientId || '');
-  const SCOPE = 'https://www.googleapis.com/auth/drive.file';
-  const TOKEN_KEY = 'taxiPayDriveTokenV1';
-  const META_KEY = 'taxiPayDriveMetaV1';
-  const FOLDER_NAME = '給与シミュレーター';
-  let tokenClient = null;
-  let accessToken = '';
-  let folderId = '';
-  let syncing = false;
-  let autoTimer = 0;
-  const $ = id => document.getElementById(id);
-
-  function jstParts(date = new Date()) {
-    const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23'}).formatToParts(date);
-    return Object.fromEntries(parts.map(x => [x.type, x.value]));
-  }
-  function jstNow() {
-    const p=jstParts(); return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}+09:00`;
-  }
-  function jstStamp() {
-    const p=jstParts(); return `${p.year}${p.month}${p.day}-${p.hour}${p.minute}${p.second}-JST`;
-  }
-  window.TaxiPayJstNow = jstNow;
-
-  function msg(id,text='',kind='info'){const el=$(id);if(!el)return;el.textContent=text;el.dataset.kind=kind;}
+  const CLIENT_ID=String(window.TAXI_PAY_GOOGLE_DRIVE_CONFIG?.clientId||'');
+  const SCOPE='https://www.googleapis.com/auth/drive.file';
+  const TOKEN_KEY='taxiPayDriveTokenV1', META_KEY='taxiPayDriveMetaV2', DEVICE_KEY='taxiPayDeviceNameV1', SAFETY_KEY='taxiPayBeforeRestoreV1';
+  const FOLDER_NAME='給与シミュレーター', RETENTION_DAYS=90;
+  let tokenClient=null, accessToken='', folderId='', syncing=false;
+  const $=id=>document.getElementById(id);
+  const jstParts=(date=new Date())=>Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(date).map(x=>[x.type,x.value]));
+  const jstNow=()=>{const p=jstParts();return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}+09:00`};
+  const jstStamp=()=>{const p=jstParts();return `${p.year}${p.month}${p.day}-${p.hour}${p.minute}${p.second}-JST`};
+  const formatJst=s=>s?new Date(s).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})+' JST':'—';
+  const formatBytes=n=>{n=Number(n||0);if(n<1024)return `${n} B`;if(n<1024**2)return `${(n/1024).toFixed(n<10240?1:0)} KB`;return `${(n/1024**2).toFixed(1)} MB`};
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function meta(){try{return JSON.parse(localStorage.getItem(META_KEY)||'{}')}catch{return {}}}
-  function saveMeta(v){localStorage.setItem(META_KEY,JSON.stringify({...meta(),...v}));renderStatus();}
+  function saveMeta(v){localStorage.setItem(META_KEY,JSON.stringify({...meta(),...v}));renderStatus()}
+  function msg(id,text='',kind='info'){const el=$(id);if(el){el.textContent=text;el.dataset.kind=kind}}
+  function defaultDeviceName(){const ua=navigator.userAgent;return /iPhone|iPad/.test(ua)?'iPhone / iPad':/Android/.test(ua)?'Android':/Windows/.test(ua)?'Windows PC':/Macintosh/.test(ua)?'Mac':'この端末'}
+  function deviceName(){return localStorage.getItem(DEVICE_KEY)||defaultDeviceName()}
+  function saveDeviceName(){const v=$('driveDeviceName')?.value.trim();if(!v)return msg('driveSyncMessage','デバイス名を入力してください。','error');localStorage.setItem(DEVICE_KEY,v);msg('driveSyncMessage','デバイス名を端末に保存しました。','success')}
+  function payload(){
+    const state=localStorage.getItem('taxiPayPwaStateV10');
+    if(!state)throw new Error('端末に保存された給与シミュレーターデータがありません。');
+    const salesTargets={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k?.startsWith('taxiPaySalesTarget:v1:'))salesTargets[k]=localStorage.getItem(k)}
+    let parsed;try{parsed=JSON.parse(state)}catch{throw new Error('端末データを読み取れませんでした。')}
+    return {schema:'taxi-pay-drive-v2',savedAtJst:jstNow(),deviceName:deviceName(),appVersion:window.TAXI_PAY_APP_META?.version||'',appBuild:window.TAXI_PAY_APP_META?.build||'',data:{state:parsed,salesTargets}};
+  }
+  function applyPayload(p){if(!p?.data?.state)throw new Error('給与シミュレーターのバックアップ形式ではありません。');localStorage.setItem('taxiPayPwaStateV10',JSON.stringify(p.data.state));Object.keys(localStorage).filter(k=>k.startsWith('taxiPaySalesTarget:v1:')).forEach(k=>localStorage.removeItem(k));Object.entries(p.data.salesTargets||{}).forEach(([k,v])=>localStorage.setItem(k,String(v)));localStorage.setItem('taxiPayLastImportedAtJst',jstNow())}
+  function summary(p){const s=p?.data?.state||{}, entries=Array.isArray(s.entries)?s.entries:[], hist=Array.isArray(s.history)?s.history:[], dates=entries.map(x=>x.date).filter(Boolean).sort();return {daily:entries.length,monthly:hist.length,period:dates.length?`${dates[0]} ～ ${dates.at(-1)}`:'—'}}
   function renderStatus(){
-    const m=meta(), connected=!!accessToken;
-    if($('driveConnectionStatus')) $('driveConnectionStatus').textContent=connected?'接続中':'未接続';
-    if($('driveLastSync')) $('driveLastSync').textContent=m.lastSyncAt?`${m.lastSyncAt.replace('T',' ').replace('+09:00','')}（日本時間）`:'—';
-    for(const id of ['driveSyncNow','driveDisconnect','driveCreateBackup','driveRefreshBackups']) if($(id)) $(id).disabled=!connected;
+    const m=meta(),connected=!!accessToken;
+    if($('driveConnectionStatus')) $('driveConnectionStatus').textContent=
+      connected?'この画面で利用可能':(m.driveScopeGranted?'同期時に自動確認':'初回同期時に権限確認');
+    if($('driveLastSync')) $('driveLastSync').textContent=m.lastSyncAt?formatJst(m.lastSyncAt):'—';
+    if($('driveDeviceName')&&!$('driveDeviceName').value) $('driveDeviceName').value=deviceName();
+    if($('driveSyncNow')) $('driveSyncNow').disabled=syncing;
+    if($('driveDisconnect')){
+      $('driveDisconnect').disabled=!connected;
+      $('driveDisconnect').hidden=!connected;
+    }
+    if($('driveRefreshBackups')) $('driveRefreshBackups').disabled=!connected;
   }
-  async function loadGis(){
-    if(window.google?.accounts?.oauth2)return;
-    await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=resolve;s.onerror=()=>reject(new Error('Google認証ライブラリを読み込めませんでした。'));document.head.appendChild(s);});
+  async function loadGis(){if(window.google?.accounts?.oauth2)return;await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=resolve;s.onerror=()=>reject(new Error('Google認証ライブラリを読み込めませんでした。'));document.head.appendChild(s)})}
+  async function initTokenClient(){ return true; }
+  function disconnect(){if(accessToken&&window.google?.accounts?.oauth2)google.accounts.oauth2.revoke(accessToken,()=>{});accessToken='';folderId='';sessionStorage.removeItem(TOKEN_KEY);renderStatus();msg('driveSyncMessage','この画面のGoogle Drive認証を解除しました。端末データとDrive上のデータは削除されません。','info')}
+  async function api(url,opt={}){if(!accessToken)throw new Error('Google Driveの利用権限を取得できていません。もう一度［Google Driveへ同期］を押してください。');const r=await fetch(url,{...opt,headers:{Authorization:`Bearer ${accessToken}`,...(opt.headers||{})}});if(r.status===401){accessToken='';sessionStorage.removeItem(TOKEN_KEY);renderStatus();throw new Error('Google Driveの認証期限が切れました。もう一度［Google Driveへ同期］を押してください。')}if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.error?.message||`Google Drive APIエラー（${r.status}）`)}return r.status===204?null:r.json()}
+  async function ensureFolder(){if(folderId)return folderId;const q=encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);const d=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)&pageSize=10`);folderId=d.files?.[0]?.id||'';if(!folderId){const c=await api('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})});folderId=c.id}return folderId}
+  async function findFile(name){const fid=await ensureFolder(),q=encodeURIComponent(`name='${name}' and '${fid}' in parents and trashed=false`);const d=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime,size)&pageSize=10`);return d.files?.[0]||null}
+  async function uploadJson(name,p,existingId=''){const metadata={name,mimeType:'application/json'};if(!existingId)metadata.parents=[await ensureFolder()];const boundary='taxipay-'+Date.now(),body=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(p)}\r\n--${boundary}--`;const url=existingId?`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart`:'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';return api(url,{method:existingId?'PATCH':'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body})}
+  async function deleteFile(id){return api(`https://www.googleapis.com/drive/v3/files/${id}`,{method:'DELETE'})}
+  async function listBackups(){const fid=await ensureFolder(),q=encodeURIComponent(`'${fid}' in parents and name contains 'backup-' and trashed=false`);return api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime,createdTime,size)&orderBy=createdTime desc&pageSize=1000`)}
+  async function cleanupOld(rows){const cutoff=Date.now()-RETENTION_DAYS*86400000,old=rows.filter(f=>new Date(f.createdTime||f.modifiedTime).getTime()<cutoff);for(const f of old)await deleteFile(f.id);return old.length}
+  async function syncNow(){
+    if(syncing)return;
+    syncing=true;
+    renderStatus();
+    try{
+      await ensureDriveAccess();
+      const p=payload(),m=meta();if(!m.everSynced){const s=summary(p);if(!confirm(`Google Driveへの初回同期です。\n\nこの端末の本人データ一式を保存します。\n日次データ：${s.daily}件\n月次データ：${s.monthly}件\n対象期間：${s.period}\n\n管理者には勤務実績（売上や個人の給与に関わる設定等の全て）は送信されません。\n\n同期しますか？`))return}const snap=JSON.parse(JSON.stringify(p));const name=`backup-${jstStamp()}.json`;await uploadJson(name,snap);const cur=await findFile('current.json');await uploadJson('current.json',snap,cur?.id||'');const d=await listBackups();const removed=await cleanupOld(d.files||[]);saveMeta({lastSyncAt:snap.savedAtJst,everSynced:true,lastDeviceName:snap.deviceName});msg('driveSyncMessage',`Google Driveへ同期しました。1世代を保存しました。${removed?` 90日を超えた${removed}件を自動削除しました。`:''}`,'success');await refreshBackups()}catch(e){
+      msg('driveSyncMessage',`Google Driveへの同期に失敗しました。端末には保存されています。${meta().lastSyncAt?` 最終同期：${formatJst(meta().lastSyncAt)}`:''} ${e.message}`,'error');
+    }finally{
+      syncing=false;
+      renderStatus();
+    }
   }
-  async function initTokenClient(){
-    if(!CLIENT_ID)throw new Error('Google Drive用クライアントIDが未設定です。GOOGLE_DRIVE_SETUP_PHASE56.mdの手順で設定してください。');
-    await loadGis();
-    if(tokenClient)return;
-    tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,callback:()=>{}});
-  }
-  async function connect(){
-    await initTokenClient();
-    const token=await new Promise((resolve,reject)=>{
-      tokenClient.callback=r=>r.error?reject(new Error(r.error_description||r.error)):resolve(r);
-      tokenClient.requestAccessToken({prompt:'consent'});
-    });
-    accessToken=token.access_token;
-    sessionStorage.setItem(TOKEN_KEY,accessToken);
-    saveMeta({connectedAt:jstNow()});
-    await ensureFolder();
-    msg('driveSyncMessage','Google Driveに接続しました。','success');
-    await syncCurrent(false);
-    await refreshBackups();
-  }
-  function disconnect(){
-    if(accessToken&&window.google?.accounts?.oauth2)google.accounts.oauth2.revoke(accessToken,()=>{});
-    accessToken='';folderId='';sessionStorage.removeItem(TOKEN_KEY);renderStatus();msg('driveSyncMessage','Google Driveとの接続を解除しました。端末内データは削除されません。','info');
-  }
-  async function api(url,options={}){
-    if(!accessToken)throw new Error('Google Driveに接続してください。');
-    const res=await fetch(url,{...options,headers:{Authorization:`Bearer ${accessToken}`,...(options.headers||{})}});
-    if(res.status===401){accessToken='';sessionStorage.removeItem(TOKEN_KEY);renderStatus();throw new Error('Google Driveの接続期限が切れました。再接続してください。');}
-    if(!res.ok){let d={};try{d=await res.json()}catch{}throw new Error(d.error?.message||`Google Drive APIエラー（${res.status}）`);}
-    return res.status===204?null:res.json();
-  }
-  async function ensureFolder(){
-    if(folderId)return folderId;
-    const q=encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-    const found=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)&pageSize=10`);
-    folderId=found.files?.[0]?.id||'';
-    if(!folderId){const created=await api('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})});folderId=created.id;}
-    return folderId;
-  }
-  function exportPayload(){if(!window.TaxiPayDataPort)throw new Error('データ書き出し機能を初期化できませんでした。');return window.TaxiPayDataPort.exportAll();}
-  async function findFile(name){
-    const fid=await ensureFolder(); const q=encodeURIComponent(`name='${name}' and '${fid}' in parents and trashed=false`);
-    const d=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)&pageSize=10`);return d.files?.[0]||null;
-  }
-  async function uploadJson(name,payload,existingId=''){
-    const metadata={name,mimeType:'application/json'}; if(!existingId)metadata.parents=[await ensureFolder()];
-    const boundary='taxipay-'+Date.now();
-    const body=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(payload)}\r\n--${boundary}--`;
-    const url=existingId?`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart`:'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-    return api(url,{method:existingId?'PATCH':'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body});
-  }
-  async function syncCurrent(show=true){
-    if(syncing)return; syncing=true;
-    try{const payload=exportPayload();const current=await findFile('current.json');await uploadJson('current.json',payload,current?.id||'');saveMeta({lastSyncAt:jstNow()});if(show)msg('driveSyncMessage','最新データをGoogle Driveへ同期しました。','success');}
-    catch(e){if(show)msg('driveSyncMessage',e.message,'error');throw e;}finally{syncing=false;}
-  }
-  async function createBackup(){
-    try{const name=`backup-${jstStamp()}.json`;await uploadJson(name,exportPayload());msg('driveBackupMessage',`${name} を作成しました。`,'success');await refreshBackups();}
-    catch(e){msg('driveBackupMessage',e.message,'error');}
-  }
-  async function listBackups(){
-    const fid=await ensureFolder();const q=encodeURIComponent(`'${fid}' in parents and name contains 'backup-' and trashed=false`);
-    return api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime,size)&orderBy=createdTime desc&pageSize=50`);
-  }
-  async function refreshBackups(){
-    const root=$('driveBackupList');if(!root)return;
-    try{const d=await listBackups(),rows=d.files||[];root.innerHTML=rows.length?rows.map(f=>`<div class="drive-backup-row"><div><strong>${f.name}</strong><span>${f.modifiedTime?new Date(f.modifiedTime).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'}):''}</span></div><button class="secondary" data-drive-restore="${f.id}" type="button">復元</button></div>`).join(''):'<p class="note">バックアップはまだありません。</p>';}
-    catch(e){root.innerHTML='<p class="note">一覧を取得できませんでした。</p>';msg('driveBackupMessage',e.message,'error');}
-  }
-  async function restoreDrive(id){
-    if(!confirm('選択したバックアップから復元します。現在のデータは復元前バックアップを作成して保護します。続行しますか？'))return;
-    try{await createSafetyBackup();const payload=await api(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`);window.TaxiPayDataPort.importAll(payload);await syncCurrent(false);msg('driveBackupMessage','バックアップから復元しました。','success');}
-    catch(e){msg('driveBackupMessage',e.message,'error');}
-  }
-  async function createSafetyBackup(){await uploadJson(`before-restore-${jstStamp()}.json`,exportPayload());}
-  function downloadLocal(){const payload=exportPayload(),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download=`taxi-pay-backup-${jstStamp()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);msg('driveBackupMessage','端末にバックアップを保存しました。','success');}
-  async function restoreLocal(file){
-    if(!file)return;try{const payload=JSON.parse(await file.text());if(!confirm('選択したファイルから復元します。現在の端末データは自動的に保持用ファイルとしてダウンロードします。続行しますか？'))return;downloadLocal();window.TaxiPayDataPort.importAll(payload);if(accessToken)await syncCurrent(false);msg('driveBackupMessage','端末のファイルから復元しました。','success');}catch(e){msg('driveBackupMessage',e.message||'復元できませんでした。','error');}
-  }
-  function scheduleAutoSync(){if(!accessToken||!navigator.onLine)return;clearTimeout(autoTimer);autoTimer=setTimeout(()=>syncCurrent(false).catch(()=>{}),1200);}
+  async function refreshBackups(){const root=$('driveBackupList');if(!root)return;try{let d=await listBackups(),rows=d.files||[];const removed=await cleanupOld(rows);if(removed){d=await listBackups();rows=d.files||[]}const total=rows.reduce((a,f)=>a+Number(f.size||0),0);if($('driveBackupSummary'))$('driveBackupSummary').textContent=`過去バックアップ：${rows.length}世代・合計 ${formatBytes(total)}（90日保存）`;root.innerHTML=rows.length?rows.map(f=>`<div class="drive-backup-row"><div><strong>${esc(formatJst(f.createdTime||f.modifiedTime))}</strong><span>容量：${esc(formatBytes(f.size))}</span></div><div class="actions"><button class="secondary" data-drive-restore="${f.id}" type="button">復元</button><button class="ghost" data-drive-delete="${f.id}" data-drive-label="${esc(formatJst(f.createdTime||f.modifiedTime))}" type="button">削除</button></div></div>`).join(''):'<p class="note">バックアップはまだありません。</p>'}catch(e){root.innerHTML='<p class="note">一覧を取得できませんでした。</p>';msg('driveBackupMessage',e.message,'error')}}
+  async function readDrive(id){return api(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`)}
+  function saveSafety(){localStorage.setItem(SAFETY_KEY,JSON.stringify({savedAtJst:jstNow(),deviceName:deviceName(),payload:payload()}));if($('restoreSafetyButton'))$('restoreSafetyButton').hidden=false}
+  async function restoreDrive(id){if(!confirm('選択したバックアップをこの端末へ復元します。現在の端末データは端末内に退避します。Google Driveは自動で上書きしません。続行しますか？'))return;try{saveSafety();applyPayload(await readDrive(id));msg('driveBackupMessage','端末へ復元しました。Google Driveにはまだ同期していません。内容を確認してください。','success');setTimeout(()=>location.reload(),500)}catch(e){msg('driveBackupMessage',e.message,'error')}}
+  function restoreSafety(){try{const s=JSON.parse(localStorage.getItem(SAFETY_KEY)||'null');if(!s?.payload)throw new Error('復元前データがありません。');if(!confirm(`復元前の端末データ（${formatJst(s.savedAtJst)}）へ戻しますか？`))return;applyPayload(s.payload);msg('driveBackupMessage','復元前の端末データへ戻しました。','success');setTimeout(()=>location.reload(),500)}catch(e){msg('driveBackupMessage',e.message,'error')}}
+  async function removeBackup(id,label){if(!confirm(`${label}\nこのバックアップを削除しますか？\n削除すると、この世代からは復元できません。`))return;try{await deleteFile(id);msg('driveBackupMessage','選択したバックアップを削除しました。','success');await refreshBackups()}catch(e){msg('driveBackupMessage',e.message,'error')}}
+  async function checkConflict(){const cur=await findFile('current.json');const box=$('driveConflictBox');if(!cur||!box){if(box)box.hidden=true;return}try{const remote=await readDrive(cur.id),local=payload();if(JSON.stringify(remote.data)!==JSON.stringify(local.data)){const a=summary(local),b=summary(remote);box.hidden=false;box.innerHTML=`<strong>端末とGoogle Driveのデータが異なります</strong><div class="drive-compare"><div><b>この端末：${esc(deviceName())}</b><span>更新：${esc(formatJst(local.savedAtJst))}</span><span>日次 ${a.daily}件 / 月次 ${a.monthly}件</span><span>${esc(a.period)}</span></div><div><b>Drive保存元：${esc(remote.deviceName||'不明')}</b><span>同期：${esc(formatJst(remote.savedAtJst||cur.modifiedTime))}</span><span>日次 ${b.daily}件 / 月次 ${b.monthly}件</span><span>${esc(b.period)}</span></div></div><p class="note">新しい日時を自動採用しません。Driveデータを使う場合は過去バックアップ一覧から復元してください。この端末を正とする場合は［Google Driveへ同期］を押してください。</p>`}else box.hidden=true}catch{box.hidden=true}}
   function bind(){
-    accessToken=sessionStorage.getItem(TOKEN_KEY)||'';renderStatus();
-    $('driveConnect')?.addEventListener('click',()=>connect().catch(e=>msg('driveSyncMessage',e.message,'error')));
+    accessToken=sessionStorage.getItem('taxipay:google-api-access-token')||sessionStorage.getItem(TOKEN_KEY)||'';
+    renderStatus();
+    if($('restoreSafetyButton')) $('restoreSafetyButton').hidden=!localStorage.getItem(SAFETY_KEY);
+    $('saveDriveDeviceName')?.addEventListener('click',saveDeviceName);
     $('driveDisconnect')?.addEventListener('click',disconnect);
-    $('driveSyncNow')?.addEventListener('click',()=>syncCurrent(true).catch(()=>{}));
-    $('driveCreateBackup')?.addEventListener('click',createBackup);
+    $('driveSyncNow')?.addEventListener('click',syncNow);
     $('driveRefreshBackups')?.addEventListener('click',refreshBackups);
-    $('localBackupDownload')?.addEventListener('click',downloadLocal);
-    $('localBackupRestore')?.addEventListener('change',e=>{restoreLocal(e.target.files?.[0]);e.target.value='';});
-    $('driveBackupList')?.addEventListener('click',e=>{const id=e.target.dataset.driveRestore;if(id)restoreDrive(id);});
-    window.addEventListener('taxipay:state-saved',scheduleAutoSync);
-    window.addEventListener('taxipay:profile-updated',scheduleAutoSync);
-    window.addEventListener('online',()=>{if(accessToken){msg('driveSyncMessage','オンラインに戻りました。同期を再開します。','info');scheduleAutoSync();}});
-    window.addEventListener('offline',()=>msg('driveSyncMessage','オフラインです。端末内への保存を継続します。','info'));
-    if(accessToken){ensureFolder().then(refreshBackups).catch(()=>{accessToken='';sessionStorage.removeItem(TOKEN_KEY);renderStatus();});}
+    $('restoreSafetyButton')?.addEventListener('click',restoreSafety);
+    $('driveBackupList')?.addEventListener('click',e=>{
+      const r=e.target.closest('[data-drive-restore]'),d=e.target.closest('[data-drive-delete]');
+      if(r)restoreDrive(r.dataset.driveRestore);
+      if(d)removeBackup(d.dataset.driveDelete,d.dataset.driveLabel);
+    });
+    if(accessToken){
+      ensureFolder().then(()=>{refreshBackups();checkConflict()}).catch(()=>{
+        accessToken='';
+        sessionStorage.removeItem(TOKEN_KEY);
+        renderStatus();
+      });
+    }
   }
-  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',bind):bind();
+  document.addEventListener('DOMContentLoaded',bind);
 })();
