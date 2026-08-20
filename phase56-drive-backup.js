@@ -137,7 +137,6 @@
     renderStatus();
     if($('restoreSafetyButton')) $('restoreSafetyButton').hidden=!localStorage.getItem(SAFETY_KEY);
     $('saveDriveDeviceName')?.addEventListener('click',saveDeviceName);
-    $('driveDisconnect')?.addEventListener('click',disconnect);
     $('driveSyncNow')?.addEventListener('click',syncNow);
     $('driveRefreshBackups')?.addEventListener('click',refreshBackups);
     $('restoreSafetyButton')?.addEventListener('click',restoreSafety);
