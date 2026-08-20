@@ -107,6 +107,7 @@
         code:x.code,
         level:x.level,
         message:x.message,
+        detail:x.detail || '',
         at:x.at
       }))
     };

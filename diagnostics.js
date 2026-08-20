@@ -4,6 +4,20 @@
   const MAX_LOGS = 100;
   const now = () => new Date().toISOString();
   const logs = (() => { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; } })();
+
+  function serializeError(error, fallback = {}) {
+    const err = error || {};
+    return {
+      name: err.name || fallback.name || '',
+      message: err.message || fallback.message || String(err || ''),
+      code: err.code || fallback.code || '',
+      filename: fallback.filename || err.fileName || '',
+      lineno: fallback.lineno ?? err.lineNumber ?? '',
+      colno: fallback.colno ?? err.columnNumber ?? '',
+      stack: typeof err.stack === 'string' ? err.stack : ''
+    };
+  }
+
   function persist(){ try { localStorage.setItem(LOG_KEY, JSON.stringify(logs.slice(-MAX_LOGS))); } catch {} }
   function record(code, level='info', message='', detail=''){
     const item={code,level,message,detail:String(detail||''),at:now(),url:location.href,userAgent:navigator.userAgent};
@@ -30,6 +44,29 @@
     return {ok:required.every(x=>x[1]),required};
   }
   window.TaxiPayDiagnostics={record,notify,compatible,getLogs:()=>logs.slice(),clear:()=>{logs.length=0;persist();}};
-  window.addEventListener('error',e=>notify('予期しないエラーが発生しました。再読み込み後も続く場合は管理者へお知らせください。','error','APP-JS-01',e.message));
-  window.addEventListener('unhandledrejection',e=>notify('処理を完了できませんでした。通信状態を確認して再試行してください。','error','APP-JS-01',e.reason?.message||e.reason));
+  window.addEventListener('error',e=>{
+    const detail=serializeError(e.error,{
+      message:e.message,
+      filename:e.filename,
+      lineno:e.lineno,
+      colno:e.colno
+    });
+    notify(
+      '予期しないエラーが発生しました。再読み込み後も続く場合は管理者へお知らせください。',
+      'error',
+      'APP-JS-01',
+      JSON.stringify(detail)
+    );
+  });
+  window.addEventListener('unhandledrejection',e=>{
+    const detail=serializeError(e.reason,{
+      message:typeof e.reason==='string'?e.reason:''
+    });
+    notify(
+      '処理中に予期しないエラーが発生しました。再読み込み後も続く場合は管理者へお知らせください。',
+      'error',
+      'APP-PROMISE-01',
+      JSON.stringify(detail)
+    );
+  });
 })();
