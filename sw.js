@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260820-02-drive-lazy-auth';
+const CACHE = 'taxi-pay-v1.4-beta-20260820-03-firebase-drive-scope';
 
 const FILES = [
   './',

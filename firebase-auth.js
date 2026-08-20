@@ -355,6 +355,28 @@ export async function initializeTaxiPayAuth(){
   }
 
   const provider = new GoogleAuthProvider();
+const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+if (sessionStorage.getItem('taxipay:request-drive-scope') === '1') {
+  provider.addScope(DRIVE_FILE_SCOPE);
+}
+
+function rememberGoogleApiToken(result) {
+  try {
+    if (!result) return '';
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const token = credential?.accessToken || '';
+    if (token) {
+      sessionStorage.setItem('taxipay:google-api-access-token', token);
+      sessionStorage.removeItem('taxipay:request-drive-scope');
+      window.dispatchEvent(new CustomEvent('taxipay:google-api-token', { detail: { available: true } }));
+    }
+    return token;
+  } catch (error) {
+    console.warn('Google API token capture failed:', error);
+    return '';
+  }
+}
+
   provider.setCustomParameters({prompt:'select_account'});
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) ||
@@ -753,6 +775,7 @@ export async function initializeTaxiPayAuth(){
       diag.step('AUTH-POPUP-START','Googleアカウント選択画面を開いています。');
       I?.add('V17-POPUP-CALL','signInWithPopup を呼び出します。');
       const result=await signInWithPopup(auth,provider);
+      rememberGoogleApiToken(result);
       I?.add('V17-POPUP-RETURN','signInWithPopup が完了しました。',result?.user?.email||'emailなし');
       updateAttempt({phase:'popup-resolved', email:maskEmail(result?.user?.email||'')});
       diag.setUserEmail(result?.user?.email||'');
