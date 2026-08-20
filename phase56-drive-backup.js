@@ -59,13 +59,47 @@
       return true;
     }
 
-    sessionStorage.setItem('taxipay:request-drive-scope','1');
-    saveMeta({driveAuthorizationPending:true});
-    window.dispatchEvent(new CustomEvent('taxipay:request-google-drive-scope'));
+    if(typeof window.TaxiPayRequestDriveAuthorization !== 'function'){
+      throw new Error(
+        'Google認証機能の準備が完了していません。ページを再読み込みしてから、もう一度お試しください。'
+      );
+    }
 
-    throw new Error(
-      'Google Driveの利用権限を確認しています。Googleの画面が表示された場合は許可してください。'
-    );
+    saveMeta({driveAuthorizationPending:true});
+    msg('driveSyncMessage','Google Driveの利用権限を確認しています…','info');
+
+    try{
+      accessToken = await window.TaxiPayRequestDriveAuthorization();
+
+      if(!accessToken){
+        throw new Error('Google Driveの利用権限を取得できませんでした。');
+      }
+
+      sessionStorage.setItem(TOKEN_KEY, accessToken);
+      saveMeta({
+        driveScopeGranted:true,
+        driveAuthorizationPending:false,
+        connectedAt:jstNow()
+      });
+
+      await ensureFolder();
+      renderStatus();
+      return true;
+
+    }catch(error){
+      saveMeta({driveAuthorizationPending:false});
+      renderStatus();
+
+      if(error?.code === 'auth/popup-closed-by-user'){
+        throw new Error('Google Driveの権限確認がキャンセルされました。');
+      }
+      if(error?.code === 'auth/popup-blocked'){
+        throw new Error(
+          'Googleの権限確認画面がブラウザにブロックされました。ポップアップを許可して再試行してください。'
+        );
+      }
+      throw error;
+    }
   }
 
   async function syncNow(){
@@ -74,7 +108,7 @@
     renderStatus();
     try{
       await ensureDriveAccess();
-      const p=payload(),m=meta();if(!m.everSynced){const s=summary(p);if(!confirm(`Google Driveへの初回同期です。\n\nこの端末の本人データ一式を保存します。\n日次データ：${s.daily}件\n月次データ：${s.monthly}件\n対象期間：${s.period}\n\n管理者には勤務実績（売上や個人の給与に関わる設定等の全て）は送信されません。\n\n同期しますか？`))return}const snap=JSON.parse(JSON.stringify(p));const name=`backup-${jstStamp()}.json`;await uploadJson(name,snap);const cur=await findFile('current.json');await uploadJson('current.json',snap,cur?.id||'');const d=await listBackups();const removed=await cleanupOld(d.files||[]);saveMeta({lastSyncAt:snap.savedAtJst,everSynced:true,lastDeviceName:snap.deviceName});msg('driveSyncMessage',`Google Driveへ同期しました。1世代を保存しました。${removed?` 90日を超えた${removed}件を自動削除しました。`:''}`,'success');await refreshBackups()}catch(e){
+      const p=payload(),m=meta();if(!m.everSynced){const s=summary(p);if(!confirm(`Google Driveへの初回同期です。\n\nこの端末の本人データ一式を保存します。\n日次データ：${s.daily}件\n月次データ：${s.monthly}件\n対象期間：${s.period}\n\n管理者には勤務実績（売上や個人の給与に関わる設定等の全て）は送信されません。\n\n同期しますか？`))return}const snap=JSON.parse(JSON.stringify(p));const name=`backup-${jstStamp()}.json`;await uploadJson(name,snap);const cur=await findFile('current.json');await uploadJson('current.json',snap,cur?.id||'');const d=await listBackups();const removed=await cleanupOld(d.files||[]);saveMeta({lastSyncAt:snap.savedAtJst,everSynced:true,lastDeviceName:snap.deviceName});msg('driveSyncMessage',`Google Driveにバックアップしました。1世代を保存しました。${removed?` 90日を超えた${removed}件を自動削除しました。`:''}`,'success');await refreshBackups()}catch(e){
       msg('driveSyncMessage',`Google Driveへの同期に失敗しました。端末には保存されています。${meta().lastSyncAt?` 最終同期：${formatJst(meta().lastSyncAt)}`:''} ${e.message}`,'error');
     }finally{
       syncing=false;
@@ -87,7 +121,7 @@
   async function restoreDrive(id){if(!confirm('選択したバックアップをこの端末へ復元します。現在の端末データは端末内に退避します。Google Driveは自動で上書きしません。続行しますか？'))return;try{saveSafety();applyPayload(await readDrive(id));msg('driveBackupMessage','端末へ復元しました。Google Driveにはまだ同期していません。内容を確認してください。','success');setTimeout(()=>location.reload(),500)}catch(e){msg('driveBackupMessage',e.message,'error')}}
   function restoreSafety(){try{const s=JSON.parse(localStorage.getItem(SAFETY_KEY)||'null');if(!s?.payload)throw new Error('復元前データがありません。');if(!confirm(`復元前の端末データ（${formatJst(s.savedAtJst)}）へ戻しますか？`))return;applyPayload(s.payload);msg('driveBackupMessage','復元前の端末データへ戻しました。','success');setTimeout(()=>location.reload(),500)}catch(e){msg('driveBackupMessage',e.message,'error')}}
   async function removeBackup(id,label){if(!confirm(`${label}\nこのバックアップを削除しますか？\n削除すると、この世代からは復元できません。`))return;try{await deleteFile(id);msg('driveBackupMessage','選択したバックアップを削除しました。','success');await refreshBackups()}catch(e){msg('driveBackupMessage',e.message,'error')}}
-  async function checkConflict(){const cur=await findFile('current.json');const box=$('driveConflictBox');if(!cur||!box){if(box)box.hidden=true;return}try{const remote=await readDrive(cur.id),local=payload();if(JSON.stringify(remote.data)!==JSON.stringify(local.data)){const a=summary(local),b=summary(remote);box.hidden=false;box.innerHTML=`<strong>端末とGoogle Driveのデータが異なります</strong><div class="drive-compare"><div><b>この端末：${esc(deviceName())}</b><span>更新：${esc(formatJst(local.savedAtJst))}</span><span>日次 ${a.daily}件 / 月次 ${a.monthly}件</span><span>${esc(a.period)}</span></div><div><b>Drive保存元：${esc(remote.deviceName||'不明')}</b><span>同期：${esc(formatJst(remote.savedAtJst||cur.modifiedTime))}</span><span>日次 ${b.daily}件 / 月次 ${b.monthly}件</span><span>${esc(b.period)}</span></div></div><p class="note">新しい日時を自動採用しません。Driveデータを使う場合は過去バックアップ一覧から復元してください。この端末を正とする場合は［Google Driveへ同期］を押してください。</p>`}else box.hidden=true}catch{box.hidden=true}}
+  async function checkConflict(){const cur=await findFile('current.json');const box=$('driveConflictBox');if(!cur||!box){if(box)box.hidden=true;return}try{const remote=await readDrive(cur.id),local=payload();if(JSON.stringify(remote.data)!==JSON.stringify(local.data)){const a=summary(local),b=summary(remote);box.hidden=false;box.innerHTML=`<strong>端末とGoogle Driveのデータが異なります</strong><div class="drive-compare"><div><b>この端末：${esc(deviceName())}</b><span>更新：${esc(formatJst(local.savedAtJst))}</span><span>日次 ${a.daily}件 / 月次 ${a.monthly}件</span><span>${esc(a.period)}</span></div><div><b>Drive保存元：${esc(remote.deviceName||'不明')}</b><span>同期：${esc(formatJst(remote.savedAtJst||cur.modifiedTime))}</span><span>日次 ${b.daily}件 / 月次 ${b.monthly}件</span><span>${esc(b.period)}</span></div></div><p class="note">新しい日時を自動採用しません。Driveデータを使う場合は過去バックアップ一覧から復元してください。この端末を正とする場合は［Google Driveにバックアップ］を押してください。</p>`}else box.hidden=true}catch{box.hidden=true}}
   function bind(){
     accessToken=sessionStorage.getItem('taxipay:google-api-access-token')||sessionStorage.getItem(TOKEN_KEY)||'';
     renderStatus();
@@ -116,7 +150,7 @@
       sessionStorage.setItem(TOKEN_KEY,accessToken);
       saveMeta({driveScopeGranted:true,driveAuthorizationPending:false});
       renderStatus();
-      msg('driveSyncMessage','Google Driveの利用権限を確認しました。［Google Driveへ同期］を押すと同期できます。','success');
+      msg('driveSyncMessage','Google Driveの利用権限を確認しました。［Google Driveにバックアップ］を押すと同期できます。','success');
     }
   });
   window.addEventListener('taxipay:google-drive-auth-error',(event)=>{

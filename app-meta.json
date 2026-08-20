@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260820-04",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260820-04-drive-auth-fix",
-  "releasedAtJst": "2026/08/20 13:24:46 JST",
+  "build": "20260820-05",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260820-05-drive-direct-auth",
+  "releasedAtJst": "2026/08/20 14:45:40 JST",
   "environment": "DEVELOP"
 }

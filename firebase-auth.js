@@ -394,7 +394,31 @@ function rememberGoogleApiToken(result) {
     }
   });
 
-  provider.setCustomParameters({prompt:'select_account'});
+  
+  window.TaxiPayRequestDriveAuthorization = async function(){
+    try {
+      const driveProvider = new GoogleAuthProvider();
+      driveProvider.addScope(DRIVE_FILE_SCOPE);
+      driveProvider.setCustomParameters({prompt:'consent select_account'});
+
+      const result = await signInWithPopup(auth, driveProvider);
+      const token = rememberGoogleApiToken(result);
+
+      if(!token){
+        throw Object.assign(
+          new Error('Google Drive用のアクセストークンを取得できませんでした。'),
+          {code:'drive/no-access-token'}
+        );
+      }
+      return token;
+    } catch(error) {
+      console.error('Google Drive authorization error:', error);
+      sessionStorage.removeItem('taxipay:request-drive-scope');
+      throw error;
+    }
+  };
+
+provider.setCustomParameters({prompt:'select_account'});
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
