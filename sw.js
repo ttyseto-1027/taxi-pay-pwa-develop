@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260820-01-drive-manual-sync';
+const CACHE = 'taxi-pay-v1.4-beta-20260820-02-drive-lazy-auth';
 
 const FILES = [
   './',
