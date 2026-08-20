@@ -42,14 +42,32 @@
   }
   async function loadGis(){if(window.google?.accounts?.oauth2)return;await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=resolve;s.onerror=()=>reject(new Error('Google認証ライブラリを読み込めませんでした。'));document.head.appendChild(s)})}
   async function initTokenClient(){ return true; }
-  function disconnect(){if(accessToken&&window.google?.accounts?.oauth2)google.accounts.oauth2.revoke(accessToken,()=>{});accessToken='';folderId='';sessionStorage.removeItem(TOKEN_KEY);renderStatus();msg('driveSyncMessage','この画面のGoogle Drive認証を解除しました。端末データとDrive上のデータは削除されません。','info')}
-  async function api(url,opt={}){if(!accessToken)throw new Error('Google Driveの利用権限を取得できていません。もう一度［Google Driveへ同期］を押してください。');const r=await fetch(url,{...opt,headers:{Authorization:`Bearer ${accessToken}`,...(opt.headers||{})}});if(r.status===401){accessToken='';sessionStorage.removeItem(TOKEN_KEY);renderStatus();throw new Error('Google Driveの認証期限が切れました。もう一度［Google Driveへ同期］を押してください。')}if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.error?.message||`Google Drive APIエラー（${r.status}）`)}return r.status===204?null:r.json()}
-  async function ensureFolder(){if(folderId)return folderId;const q=encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);const d=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)&pageSize=10`);folderId=d.files?.[0]?.id||'';if(!folderId){const c=await api('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})});folderId=c.id}return folderId}
-  async function findFile(name){const fid=await ensureFolder(),q=encodeURIComponent(`name='${name}' and '${fid}' in parents and trashed=false`);const d=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime,size)&pageSize=10`);return d.files?.[0]||null}
-  async function uploadJson(name,p,existingId=''){const metadata={name,mimeType:'application/json'};if(!existingId)metadata.parents=[await ensureFolder()];const boundary='taxipay-'+Date.now(),body=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(p)}\r\n--${boundary}--`;const url=existingId?`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart`:'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';return api(url,{method:existingId?'PATCH':'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body})}
-  async function deleteFile(id){return api(`https://www.googleapis.com/drive/v3/files/${id}`,{method:'DELETE'})}
-  async function listBackups(){const fid=await ensureFolder(),q=encodeURIComponent(`'${fid}' in parents and name contains 'backup-' and trashed=false`);return api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime,createdTime,size)&orderBy=createdTime desc&pageSize=1000`)}
-  async function cleanupOld(rows){const cutoff=Date.now()-RETENTION_DAYS*86400000,old=rows.filter(f=>new Date(f.createdTime||f.modifiedTime).getTime()<cutoff);for(const f of old)await deleteFile(f.id);return old.length}
+
+  async function ensureDriveAccess(){
+    if(accessToken) return true;
+
+    accessToken =
+      sessionStorage.getItem('taxipay:google-api-access-token') ||
+      sessionStorage.getItem(TOKEN_KEY) ||
+      '';
+
+    if(accessToken){
+      sessionStorage.setItem(TOKEN_KEY, accessToken);
+      saveMeta({driveScopeGranted:true, driveAuthorizationPending:false});
+      await ensureFolder();
+      renderStatus();
+      return true;
+    }
+
+    sessionStorage.setItem('taxipay:request-drive-scope','1');
+    saveMeta({driveAuthorizationPending:true});
+    window.dispatchEvent(new CustomEvent('taxipay:request-google-drive-scope'));
+
+    throw new Error(
+      'Google Driveの利用権限を確認しています。Googleの画面が表示された場合は許可してください。'
+    );
+  }
+
   async function syncNow(){
     if(syncing)return;
     syncing=true;
@@ -92,5 +110,21 @@
       });
     }
   }
+  window.addEventListener('taxipay:google-api-token',()=>{
+    accessToken=sessionStorage.getItem('taxipay:google-api-access-token')||'';
+    if(accessToken){
+      sessionStorage.setItem(TOKEN_KEY,accessToken);
+      saveMeta({driveScopeGranted:true,driveAuthorizationPending:false});
+      renderStatus();
+      msg('driveSyncMessage','Google Driveの利用権限を確認しました。［Google Driveへ同期］を押すと同期できます。','success');
+    }
+  });
+  window.addEventListener('taxipay:google-drive-auth-error',(event)=>{
+    const detail=event.detail||{};
+    sessionStorage.removeItem('taxipay:request-drive-scope');
+    saveMeta({driveAuthorizationPending:false});
+    renderStatus();
+    msg('driveSyncMessage',`Google Driveの権限確認に失敗しました。${detail.code?` コード：${detail.code}`:''}`,'error');
+  });
   document.addEventListener('DOMContentLoaded',bind);
 })();

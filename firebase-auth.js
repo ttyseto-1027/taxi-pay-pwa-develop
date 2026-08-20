@@ -377,6 +377,23 @@ function rememberGoogleApiToken(result) {
   }
 }
 
+  
+  window.addEventListener('taxipay:request-google-drive-scope', async () => {
+    try {
+      const driveProvider = new GoogleAuthProvider();
+      driveProvider.addScope(DRIVE_FILE_SCOPE);
+      driveProvider.setCustomParameters({prompt:'consent'});
+      const result = await signInWithPopup(auth, driveProvider);
+      rememberGoogleApiToken(result);
+    } catch (error) {
+      console.error('Google Drive authorization error:', error);
+      sessionStorage.removeItem('taxipay:request-drive-scope');
+      window.dispatchEvent(new CustomEvent('taxipay:google-drive-auth-error',{
+        detail:{code:error?.code||'unknown',message:error?.message||''}
+      }));
+    }
+  });
+
   provider.setCustomParameters({prompt:'select_account'});
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) ||
