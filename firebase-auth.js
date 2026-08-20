@@ -8,7 +8,8 @@ import {
   signInWithRedirect,
   getRedirectResult,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  reauthenticateWithPopup
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import {
   getFirestore,
@@ -378,30 +379,25 @@ function rememberGoogleApiToken(result) {
 }
 
   
-  window.addEventListener('taxipay:request-google-drive-scope', async () => {
-    try {
-      const driveProvider = new GoogleAuthProvider();
-      driveProvider.addScope(DRIVE_FILE_SCOPE);
-      driveProvider.setCustomParameters({prompt:'consent'});
-      const result = await signInWithPopup(auth, driveProvider);
-      rememberGoogleApiToken(result);
-    } catch (error) {
-      console.error('Google Drive authorization error:', error);
-      sessionStorage.removeItem('taxipay:request-drive-scope');
-      window.dispatchEvent(new CustomEvent('taxipay:google-drive-auth-error',{
-        detail:{code:error?.code||'unknown',message:error?.message||''}
-      }));
-    }
-  });
-
-  
   window.TaxiPayRequestDriveAuthorization = async function(){
     try {
+      const user = auth.currentUser;
+      if(!user){
+        throw Object.assign(
+          new Error('Googleログイン状態を確認できません。もう一度ログインしてください。'),
+          {code:'drive/not-signed-in'}
+        );
+      }
+
       const driveProvider = new GoogleAuthProvider();
       driveProvider.addScope(DRIVE_FILE_SCOPE);
-      driveProvider.setCustomParameters({prompt:'consent select_account'});
+      driveProvider.setCustomParameters({
+        prompt:'consent',
+        login_hint:user.email || undefined
+      });
 
-      const result = await signInWithPopup(auth, driveProvider);
+      // Already signed in: reauthenticate the current user only to add drive.file.
+      const result = await reauthenticateWithPopup(user, driveProvider);
       const token = rememberGoogleApiToken(result);
 
       if(!token){
@@ -410,6 +406,7 @@ function rememberGoogleApiToken(result) {
           {code:'drive/no-access-token'}
         );
       }
+
       return token;
     } catch(error) {
       console.error('Google Drive authorization error:', error);
@@ -418,7 +415,7 @@ function rememberGoogleApiToken(result) {
     }
   };
 
-provider.setCustomParameters({prompt:'select_account'});
+  provider.setCustomParameters({prompt:'select_account'});
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
