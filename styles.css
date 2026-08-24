@@ -834,3 +834,7 @@ tr[hidden] { display: none !important; }
 
 /* Phase5/6 Drive sync 2026-08-20 */
 .drive-card .actions{flex-wrap:wrap}.drive-backup-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(0,0,0,.12)}.drive-backup-row>div:first-child{display:grid;gap:4px}.drive-backup-row span{font-size:.9rem;opacity:.75}.drive-conflict-box{margin-top:14px;padding:14px;border:1px solid currentColor;border-radius:10px}.drive-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}.drive-compare>div{display:grid;gap:4px;padding:10px;border:1px solid rgba(0,0,0,.12);border-radius:8px}@media(max-width:680px){.drive-backup-row{align-items:flex-start;flex-direction:column}.drive-compare{grid-template-columns:1fr}}
+
+/* Phase 8: 月次集計ダッシュボード */
+.phase8-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:14px 0}.phase8-controls label{min-width:150px;flex:1}.phase8-chart-wrap{width:100%;overflow:hidden;margin-top:10px}.phase8-chart-wrap canvas{display:block;max-width:100%;min-height:300px}.phase8-legend{font-weight:600;margin:8px 0}.phase8-table{width:100%;min-width:780px}.phase8-progress{display:inline-block;font-size:.75em;padding:2px 6px;border:1px solid currentColor;border-radius:999px;white-space:nowrap}.phase8-dashboard .table-scroll{overflow-x:auto;margin-top:16px}
+@media(max-width:640px){.phase8-controls{display:grid;grid-template-columns:1fr}.phase8-controls label,.phase8-controls button{width:100%}.phase8-chart-wrap canvas{min-height:280px}}

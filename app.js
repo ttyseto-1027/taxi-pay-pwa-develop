@@ -210,6 +210,70 @@ function totals(entries=currentEntries()){
   const statutoryDeductions=social+incomeTax+Number(deductionSettings.residentTax||0),voluntaryDeductions=Number(deductionSettings.unionFee||0)+Number(deductionSettings.mutualAidFee||0),otherDeductions=(deductionSettings.otherItems||[]).reduce((sum,x)=>sum+Number(x.amount||0),0),deductions=statutoryDeductions+voluntaryDeductions+otherDeductions;
   return {gross,net,revenue,c,premium,model,completedStandardShifts,actualCompleted,leaveCredit,paidLeaveDays,accidentFree,violationFree,allowances,paidLeavePay,additionalPaymentItems,hourlyPayments,otherPayments,additionalPayments,grossPay,deductionSettings,social,incomeTax,statutoryDeductions,voluntaryDeductions,otherDeductions,deductions,takeHome:grossPay-deductions};
 }
+
+const PHASE8_METRICS={
+  gross:{label:'税込営収',unit:'円',value:r=>Number(r.gross||0)},
+  grossPay:{label:'概算総支給',unit:'円',value:r=>Number(r.grossPay||0)},
+  takeHome:{label:'概算手取り',unit:'円',value:r=>Number(r.takeHome||0)},
+  takeHomeHourly:{label:'時間あたり手取り',unit:'円/時間',value:r=>Number(r.workMinutes||0)>0?Number(r.takeHome||0)/(Number(r.workMinutes)/60):0},
+  effectiveReturn:{label:'実質還元率',unit:'%',value:r=>Number(r.gross||0)>0?Number(r.grossPay||0)/Number(r.gross)*100:0},
+  takeHomeReturn:{label:'手取り還元率',unit:'%',value:r=>Number(r.gross||0)>0?Number(r.takeHome||0)/Number(r.gross)*100:0}
+};
+function phase8CurrentRow(){
+  const t=totals(),entries=currentEntries(),actual=entries.filter(e=>leaveUnits(e)===0);
+  return {month:$('currentMonth')?.value||today().slice(0,7),gross:t.gross,grossPay:t.grossPay,takeHome:t.takeHome,workMinutes:t.premium.work,breakMinutes:actual.reduce((s,e)=>s+Number(e.normalBreakMinutes||0)+Number(e.nightBreakMinutes||0),0),count:actual.length,inProgress:true};
+}
+function phase8Rows(){
+  const map=new Map();
+  for(const h of (Array.isArray(state.history)?state.history:[]))map.set(h.month,{...h,inProgress:false});
+  const cur=phase8CurrentRow();map.set(cur.month,cur);
+  return [...map.values()].filter(x=>x.month).sort((a,b)=>a.month.localeCompare(b.month));
+}
+function phase8FormatMetric(key,v){
+  if(key==='effectiveReturn'||key==='takeHomeReturn')return `${Number(v||0).toFixed(1)}%`;
+  return `${Math.round(Number(v||0)).toLocaleString('ja-JP')}${key==='takeHomeHourly'?'円/時':'円'}`;
+}
+function phase8PopulateMetrics(){
+  const a=$('phase8Primary'),b=$('phase8Secondary');if(!a||!b)return;
+  if(!a.options.length)for(const [k,m] of Object.entries(PHASE8_METRICS)){a.add(new Option(m.label,k));b.add(new Option(m.label,k));}
+  if(!a.value)a.value='gross';if(!b.value)b.value='takeHome';
+}
+function renderMonthlyDashboard(){
+  if(!$('phase8Chart'))return;
+  phase8PopulateMetrics();
+  const current=phase8CurrentRow(),actual=current.count||0;
+  $('monthlyGross').textContent=yen(current.gross);
+  $('monthlyWorkHours').textContent=minutesText(current.workMinutes||0);
+  $('monthlyBreakHours').textContent=minutesText(current.breakMinutes||0);
+  $('monthlyAvgGross').textContent=yen(actual?current.gross/actual:0);
+  $('monthlyGrossPerHour').textContent=yen(current.workMinutes?current.gross/(current.workMinutes/60):0);
+  $('monthlyTakeHome').textContent=yen(current.takeHome);
+  $('monthlyProgressNote').textContent=`${current.month.replace('-','年')}月は進行中のデータです。`;
+  let rows=phase8Rows(),period=$('phase8Period')?.value||'12';
+  if(period!=='all')rows=rows.slice(-Number(period));
+  const body=$('phase8TableBody');body.innerHTML='';
+  for(const r of rows){const tr=document.createElement('tr'),tag=r.inProgress?' <span class="phase8-progress">進行中</span>':'';tr.innerHTML=`<td>${r.month}${tag}</td><td>${yen(r.gross)}</td><td>${r.grossPay==null?'—':yen(r.grossPay)}</td><td>${yen(r.takeHome)}</td><td>${r.workMinutes?phase8FormatMetric('takeHomeHourly',PHASE8_METRICS.takeHomeHourly.value(r)):'—'}</td><td>${r.grossPay==null?'—':phase8FormatMetric('effectiveReturn',PHASE8_METRICS.effectiveReturn.value(r))}</td><td>${phase8FormatMetric('takeHomeReturn',PHASE8_METRICS.takeHomeReturn.value(r))}</td>`;body.appendChild(tr);}
+  drawPhase8Chart(rows);
+}
+function drawPhase8Chart(rows){
+  const canvas=$('phase8Chart'),empty=$('phase8Empty');if(!canvas)return;
+  const ctx=canvas.getContext('2d'),dpr=window.devicePixelRatio||1,w=Math.max(320,canvas.parentElement.clientWidth||900),h=360;
+  canvas.style.width=w+'px';canvas.style.height=h+'px';canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  if(!rows.length){empty.hidden=false;return;}empty.hidden=true;
+  const primary=$('phase8Primary').value,secondary=!$('phase8SecondaryWrap').hidden?$('phase8Secondary').value:null;
+  const pVals=rows.map(r=>PHASE8_METRICS[primary].value(r)),sVals=secondary?rows.map(r=>PHASE8_METRICS[secondary].value(r)):[];
+  const pad={l:58,r:secondary?58:18,t:24,b:54},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  const maxP=Math.max(1,...pVals)*1.08,maxS=secondary?Math.max(1,...sVals)*1.08:1;
+  ctx.font='12px sans-serif';ctx.strokeStyle='rgba(127,127,127,.35)';ctx.fillStyle='currentColor';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillText(phase8AxisNumber(maxP*(1-i/4),primary),4,y+4);if(secondary){const txt=phase8AxisNumber(maxS*(1-i/4),secondary);ctx.fillText(txt,w-pad.r+5,y+4);}}
+  const x=i=>rows.length===1?pad.l+cw/2:pad.l+cw*i/(rows.length-1), yP=v=>pad.t+ch-(v/maxP)*ch,yS=v=>pad.t+ch-(v/maxS)*ch;
+  function line(vals,yFn,dash){ctx.save();ctx.lineWidth=2.5;ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#2563eb';if(dash)ctx.setLineDash([7,5]);ctx.beginPath();vals.forEach((v,i)=>i?ctx.lineTo(x(i),yFn(v)):ctx.moveTo(x(i),yFn(v)));ctx.stroke();ctx.restore();}
+  line(pVals,yP,false);if(secondary)line(sVals,yS,true);
+  rows.forEach((r,i)=>{ctx.fillStyle='currentColor';ctx.textAlign='center';ctx.fillText(r.month.slice(2).replace('-','/'),x(i),h-26);if(r.inProgress){ctx.font='10px sans-serif';ctx.fillText('進行中',x(i),h-10);ctx.font='12px sans-serif';}});
+  ctx.textAlign='left';$('phase8Legend').textContent=`第1軸：${PHASE8_METRICS[primary].label}${secondary?`　／　第2軸：${PHASE8_METRICS[secondary].label}（破線）`:''}`;
+}
+function phase8AxisNumber(v,key){if(key==='effectiveReturn'||key==='takeHomeReturn')return `${Math.round(v)}%`;if(v>=10000)return `${Math.round(v/1000)}k`;return String(Math.round(v));}
+
 function populateShiftSelects(){for(const id of ['shiftType','onboardingShiftType']){const sel=$(id);sel.innerHTML='';for(const k of Object.keys(SHIFT_RULES)){const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);}}}
 function ruleDescription(type){const r=SHIFT_RULES[type];if(!r)return '';const desc=r.family==='fixed'?`定時制・積算歩合率 ${r.rate.toFixed(2)}%（給与算定係数0.9585なし、歩合給Bなし）`:'通常勤務・累進歩合';return `<strong>${r.label}</strong><br>1乗務所定：${minutesText(r.shiftMinutes)}／月間所定：${minutesText(r.monthlyMinutes)}／所定乗務：${r.plannedShifts}回${r.equivalentDays?`（実質${r.equivalentDays}日相当）`:''}<br>${desc}`;}
 function payRow(label,value){return `<div><span>${label}</span><strong>${yen(value)}</strong></div>`;}
@@ -223,7 +287,7 @@ function renderBreakdown(t){
   html+='<h4>その他控除</h4>';for(const x of (t.deductionSettings.otherItems||[]))html+=payRow(x.name||'その他控除',x.amount);html+=payRow('その他控除小計',t.otherDeductions)+payRow('控除合計',t.deductions)+payRow('概算手取り',t.takeHome);
   html+=`<p class="note">所定労働達成 ${t.completedStandardShifts}/${currentRule().plannedShifts}乗務／総実働 ${minutesText(t.premium.work)}／深夜 ${minutesText(t.premium.night)}／歩合時間単価（概算） ${yen(t.premium.hourly)}</p>`;$('paySlipBreakdown').innerHTML=html;
 }
-function render(){const t=totals(),ym=$('currentMonth').value,pp=payrollPeriod(ym);$('headerShift').textContent=`勤務区分：${state.settings.shiftType||'未設定'}`;$('reportTitle').textContent=`${ym.replace('-','年')}月 給与シミュレーション`;$('payPeriod').textContent=`給与対象期間：${formatDateJP(pp.start)}〜${formatDateJP(pp.end)}`;$('sumGross').textContent=yen(t.gross);$('sumNet').textContent=yen(t.net);$('payRevenue').textContent=yen(t.revenue);$('commissionTotal').textContent=yen(t.c.total);$('premiumTotal').textContent=yen(t.premium.total);$('allowances').textContent=yen(t.allowances);$('paidLeavePay').textContent=yen(t.paidLeavePay);$('grossPay').textContent=yen(t.grossPay);$('incomeTaxResult').textContent=yen(t.incomeTax);$('deductions').textContent=yen(t.deductions);$('takeHome').textContent=yen(t.takeHome);$('shiftCount').textContent=`${currentEntries().filter(e=>leaveUnits(e)===0).length}回／有給${t.paidLeaveDays}日`;renderBreakdown(t);renderEntries();renderHistory();updateSettingsViews();}
+function render(){const t=totals(),ym=$('currentMonth').value,pp=payrollPeriod(ym);$('headerShift').textContent=`勤務区分：${state.settings.shiftType||'未設定'}`;$('reportTitle').textContent=`${ym.replace('-','年')}月 給与シミュレーション`;$('payPeriod').textContent=`給与対象期間：${formatDateJP(pp.start)}〜${formatDateJP(pp.end)}`;$('sumGross').textContent=yen(t.gross);$('sumNet').textContent=yen(t.net);$('payRevenue').textContent=yen(t.revenue);$('commissionTotal').textContent=yen(t.c.total);$('premiumTotal').textContent=yen(t.premium.total);$('allowances').textContent=yen(t.allowances);$('paidLeavePay').textContent=yen(t.paidLeavePay);$('grossPay').textContent=yen(t.grossPay);$('incomeTaxResult').textContent=yen(t.incomeTax);$('deductions').textContent=yen(t.deductions);$('takeHome').textContent=yen(t.takeHome);$('shiftCount').textContent=`${currentEntries().filter(e=>leaveUnits(e)===0).length}回／有給${t.paidLeaveDays}日`;renderBreakdown(t);renderEntries();renderHistory();updateSettingsViews();renderMonthlyDashboard();}
 function holidayLabel(v){return v==='statutory'?'法定休日':v==='nonstatutory'?'法定外休日':'通常';}
 function renderEntries(){const body=$('entriesTable').querySelector('tbody');body.innerHTML='';for(const e of currentEntries()){const t=entryTimeInfo(e),leave=leaveUnits(e)>0,tr=document.createElement('tr');tr.innerHTML=`<td>${e.date}</td><td>${leave?'—':yen(payrollGross(e))}</td><td>${leave?'—':(e.clockIn||'—')}</td><td>${leave?'—':(e.clockOut||'—')}</td><td>${minutesText(t.work)}</td><td>${minutesText(t.night)}</td><td>${leave?leaveLabel(leaveUnits(e)):holidayLabel(e.holidayType)}</td><td class="no-print"><button class="ghost" data-edit="${e.id}">編集</button> <button class="danger" data-del="${e.id}">削除</button></td>`;body.appendChild(tr);}}
 function renderHistory(){const d=$('historyList');d.innerHTML='';if(!state.history.length){d.innerHTML='<p class="note">まだ給与締め履歴はありません。</p>';return;}for(const h of state.history.slice().reverse()){const x=document.createElement('div');x.className='history-item';x.innerHTML=`<strong>${h.month}給与（${h.shiftType}）</strong><br>対象期間 ${h.periodStart}〜${h.periodEnd}<br>税込営収 ${yen(h.gross)}／積算歩合給 ${yen(h.commission)}／概算手取り ${yen(h.takeHome)}／${h.count}乗務／有給${Number(h.paidLeaveDays||0)}日`;d.appendChild(x);}}
@@ -357,7 +421,14 @@ $('exportCsv').onclick=()=>{
   a.download=`taxi-pay-${$('currentMonth').value}.csv`;
   a.click();
 };
-$('closeMonth').onclick=()=>{const entries=currentEntries();if(!entries.length)return alert('給与締めするデータがありません。');const ym=$('currentMonth').value,pp=payrollPeriod(ym);if(!confirm(`${ym}給与を締めます。履歴保存後、この期間の勤務データは削除されます。`))return;const t=totals(entries);state.settings.paidLeaveUsageHistory=Array.isArray(state.settings.paidLeaveUsageHistory)?state.settings.paidLeaveUsageHistory:[];if(t.paidLeaveDays>0&&!state.settings.paidLeaveUsageHistory.some(x=>x.month===ym))state.settings.paidLeaveUsageHistory.push({month:ym,days:t.paidLeaveDays,periodStart:pp.start,periodEnd:pp.end,closedAt:new Date().toISOString()});state.history.push({month:ym,shiftType:state.settings.shiftType,periodStart:pp.start,periodEnd:pp.end,gross:t.gross,commission:t.c.total,takeHome:t.takeHome,count:entries.filter(e=>leaveUnits(e)===0).length,paidLeaveDays:t.paidLeaveDays,closedAt:new Date().toISOString()});state.entries=state.entries.filter(e=>payrollMonthOf(e.date)!==ym);saveState();render();};
+$('closeMonth').onclick=()=>{const entries=currentEntries();if(!entries.length)return alert('給与締めするデータがありません。');const ym=$('currentMonth').value,pp=payrollPeriod(ym);if(!confirm(`${ym}給与を締めます。履歴保存後、この期間の勤務データは削除されます。`))return;const t=totals(entries);state.settings.paidLeaveUsageHistory=Array.isArray(state.settings.paidLeaveUsageHistory)?state.settings.paidLeaveUsageHistory:[];if(t.paidLeaveDays>0&&!state.settings.paidLeaveUsageHistory.some(x=>x.month===ym))state.settings.paidLeaveUsageHistory.push({month:ym,days:t.paidLeaveDays,periodStart:pp.start,periodEnd:pp.end,closedAt:new Date().toISOString()});state.history.push({month:ym,shiftType:state.settings.shiftType,periodStart:pp.start,periodEnd:pp.end,gross:t.gross,grossPay:t.grossPay,commission:t.c.total,takeHome:t.takeHome,workMinutes:t.premium.work,breakMinutes:entries.filter(e=>leaveUnits(e)===0).reduce((s,e)=>s+Number(e.normalBreakMinutes||0)+Number(e.nightBreakMinutes||0),0),count:entries.filter(e=>leaveUnits(e)===0).length,paidLeaveDays:t.paidLeaveDays,closedAt:new Date().toISOString()});state.entries=state.entries.filter(e=>payrollMonthOf(e.date)!==ym);saveState();render();};
+phase8PopulateMetrics();
+$('phase8Period')?.addEventListener('change',renderMonthlyDashboard);
+$('phase8Primary')?.addEventListener('change',renderMonthlyDashboard);
+$('phase8Secondary')?.addEventListener('change',renderMonthlyDashboard);
+$('phase8AddSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=false;$('phase8RemoveSecondary').hidden=false;$('phase8AddSecondary').hidden=true;renderMonthlyDashboard();});
+$('phase8RemoveSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=true;$('phase8RemoveSecondary').hidden=true;$('phase8AddSecondary').hidden=false;renderMonthlyDashboard();});
+window.addEventListener('resize',()=>{if(!$('phase8Chart')?.closest('[hidden]'))drawPhase8Chart((()=>{let r=phase8Rows(),p=$('phase8Period')?.value||'12';return p==='all'?r:r.slice(-Number(p));})());});
 $('openSettings').onclick=()=>{loadSettingsForm();$('settingsDialog').showModal();};$('shiftType').onchange=()=>{$('shiftRuleInfo').innerHTML=ruleDescription($('shiftType').value);const r=SHIFT_RULES[$('shiftType').value];$('standardShiftHoursDisplay').value=minutesText(r.shiftMinutes);$('standardHoursDisplay').value=minutesText(r.monthlyMinutes);};$('saveSettings').onclick=e=>{e.preventDefault();saveSettingsForm();$('settingsDialog').close();};
 $('openAdmin').onclick=()=>{const p=prompt('開発者パスワードを入力してください。');if(p!==ADMIN_PASSWORD)return alert('パスワードが違います。');loadAdminForm();$('adminDialog').showModal();};$('saveAdmin').onclick=e=>{e.preventDefault();saveAdminForm();$('adminDialog').close();alert('開発者設定を保存しました。');};
 $('onboardingShiftType').onchange=()=>{$('onboardingRule').innerHTML=ruleDescription($('onboardingShiftType').value);};$('completeOnboarding').onclick=e=>{e.preventDefault();if(!$('agreeDisclaimer').checked)return alert('確認欄にチェックしてください。');state.settings.shiftType=$('onboardingShiftType').value;state.initialized=true;saveState();$('onboardingDialog').close();render();};

@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260824-11-phase4-phase7';
+const CACHE = 'taxi-pay-v1.4-beta-20260824-12-phase8-monthly-dashboard';
 
 const FILES = [
   './',
