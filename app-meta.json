@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260820-10",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260820-10-drive-module-audit",
-  "releasedAtJst": "2026/08/20 15:23:58 JST",
+  "build": "20260824-11",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260824-11-phase4-phase7",
+  "releasedAtJst": "2026/08/24 21:25:52 JST",
   "environment": "DEVELOP"
 }

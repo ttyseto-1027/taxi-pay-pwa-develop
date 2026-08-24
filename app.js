@@ -194,7 +194,7 @@ function additionalPaymentsForMonth(ym){
 }
 function totals(entries=currentEntries()){
   const actual=entries.filter(e=>leaveUnits(e)===0);
-  const gross=actual.reduce((s,e)=>s+payrollGross(e),0),net=actual.reduce((s,e)=>s+calcNet(payrollGross(e)),0),revenue=monthlyRevenue(net),c=commission(revenue),rule=currentRule();
+  const gross=actual.reduce((s,e)=>s+payrollGross(e),0),net=actual.reduce((s,e)=>s+Math.round(calcNet(payrollGross(e))),0),revenue=monthlyRevenue(net),c=commission(revenue),rule=currentRule();
   const actualCompleted=actual.filter(e=>entryTimeInfo(e).work>=rule.shiftMinutes).length;
   const leaveCredit=entries.reduce((s,e)=>s+paidLeaveShiftCredit(e),0);
   const completedStandardShifts=actualCompleted+leaveCredit;
@@ -204,7 +204,7 @@ function totals(entries=currentEntries()){
   const allowances=model+accidentFree+violationFree,paidLeavePay=paidLeaveDays*Number(state.settings.paidLeaveDailyRate||0),premium=premiumCalculation(actual,c);
   const ym=$('currentMonth')?.value||today().slice(0,7),deductionSettings=effectiveDeductionSettings(ym),additionalPaymentItems=additionalPaymentsForMonth(ym);
   const hourlyPayments=additionalPaymentItems.filter(x=>x.type!=='other').reduce((sum,x)=>sum+Number(x.amount||0),0),otherPayments=additionalPaymentItems.filter(x=>x.type==='other').reduce((sum,x)=>sum+Number(x.amount||0),0),additionalPayments=hourlyPayments+otherPayments;
-  const grossPay=c.total+premium.total+allowances+paidLeavePay+additionalPayments;
+  const grossPay=Math.ceil(c.total+premium.total+allowances+paidLeavePay+additionalPayments);
   const social=Number(deductionSettings.healthInsurance||0)+Number(deductionSettings.pension||0)+Number(deductionSettings.employmentInsurance||0);
   const incomeTax=incomeTax2026(Math.max(0,grossPay-social),deductionSettings.dependentCount,state.settings.withholdingCategory);
   const statutoryDeductions=social+incomeTax+Number(deductionSettings.residentTax||0),voluntaryDeductions=Number(deductionSettings.unionFee||0)+Number(deductionSettings.mutualAidFee||0),otherDeductions=(deductionSettings.otherItems||[]).reduce((sum,x)=>sum+Number(x.amount||0),0),deductions=statutoryDeductions+voluntaryDeductions+otherDeductions;
