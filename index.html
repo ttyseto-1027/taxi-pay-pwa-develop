@@ -8,7 +8,7 @@
 <meta content="タクシー乗務員向け給与概算シミュレーター" name="description"/>
 <title>DEVELOP_タクシー給与シミュレーター</title>
 <link href="manifest.json" rel="manifest"/>
-<link href="styles.css?v=20260825-06" rel="stylesheet"/>
+<link href="styles.css?v=20260825-07" rel="stylesheet"/>
 <script>
 (function(){
   'use strict';
@@ -162,7 +162,7 @@
 </div>
 </div></details></section><section class="app-view" data-member-panel="true" data-view-panel="monthly" hidden=""><div class="view-heading"><h2>月次集計</h2><p>月全体の実績と締め履歴を確認する組合員専用画面です。</p></div><section class="card"><h2>月間集計</h2><div class="summary-grid"><div><span>税込営収合計</span><strong id="monthlyGross">—</strong></div><div><span>総労働時間</span><strong id="monthlyWorkHours">—</strong></div><div><span>総休憩時間</span><strong id="monthlyBreakHours">—</strong></div><div><span>1乗務平均営収</span><strong id="monthlyAvgGross">—</strong></div><div><span>時間あたり営収</span><strong id="monthlyGrossPerHour">—</strong></div><div><span>概算手取り</span><strong id="monthlyTakeHome">—</strong></div></div><p class="note" id="monthlyProgressNote"></p></section>
 <section class="card phase8-dashboard"><div class="phase8-title-row"><div><h2>推移グラフ</h2><p class="note">期間と指標を選んで月ごとの推移を確認できます。当月は「進行中」として表示します。</p></div></div>
-<div class="phase8-controls"><label>表示期間<select id="phase8Period"><option value="current">当月</option><option value="3">3か月</option><option value="6">6か月</option><option value="12" selected>12か月</option><option value="all">全期間</option></select></label>
+<div class="phase8-controls"><label>表示期間<select id="phase8Period"><option value="current" selected>当月</option><option value="3">3か月</option><option value="6">6か月</option><option value="12">12か月</option><option value="all">全期間</option></select></label>
 <button class="ghost" id="phase8ToggleCustomPeriod" type="button">期間指定</button><label>グラフ形式<select id="phase8ChartType"><option value="line" selected>折れ線</option><option value="bar">棒グラフ</option><option value="stacked">積み上げ棒</option></select></label><div class="phase8-axis-stack">
 <div class="phase8-axis-row"><label>第1軸<select id="phase8Primary"></select></label><button class="ghost" id="phase8AddSecondary" type="button">＋ 第2軸を追加表示</button></div>
 <div class="phase8-axis-row phase8-axis-row-secondary"><label id="phase8SecondaryWrap" hidden>第2軸<select id="phase8Secondary"></select></label><button class="ghost" id="phase8RemoveSecondary" type="button" hidden>第2軸を非表示</button></div>
@@ -248,4 +248,4 @@
 <button type="button" data-unit="minute">分</button>
 </div>
 </dialog>
-<script src="app-meta.js?v=20260825-06"></script><script src="phase75-ops.js?v=20260825-06"></script><script src="diagnostics.js?v=20260825-06"></script><script src="firebase-config.js?v=20260825-06"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260825-06"></script><script src="v13-features.js?v=20260825-06"></script><script src="profile-diagnostics.js?v=20260825-06"></script><script src="google-drive-config.js?v=20260825-06"></script><script src="phase56-drive-backup.js?v=20260825-06"></script><script src="boot.js?v=20260825-06"></script><script src="phase1-ui.js?v=20260825-06"></script><script src="phase2-user-settings.js?v=20260825-06" type="module"></script><script src="phase3-personal-settings.js?v=20260825-06"></script><script src="phase4-payroll-adjustments.js?v=20260825-06"></script><script src="phase7-ui.js?v=20260825-06"></script></body></html>
+<script src="app-meta.js?v=20260825-07"></script><script src="phase75-ops.js?v=20260825-07"></script><script src="diagnostics.js?v=20260825-07"></script><script src="firebase-config.js?v=20260825-07"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260825-07"></script><script src="v13-features.js?v=20260825-07"></script><script src="profile-diagnostics.js?v=20260825-07"></script><script src="google-drive-config.js?v=20260825-07"></script><script src="phase56-drive-backup.js?v=20260825-07"></script><script src="boot.js?v=20260825-07"></script><script src="phase1-ui.js?v=20260825-07"></script><script src="phase2-user-settings.js?v=20260825-07" type="module"></script><script src="phase3-personal-settings.js?v=20260825-07"></script><script src="phase4-payroll-adjustments.js?v=20260825-07"></script><script src="phase7-ui.js?v=20260825-07"></script></body></html>

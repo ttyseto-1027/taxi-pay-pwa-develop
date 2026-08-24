@@ -243,7 +243,16 @@ function phase8PopulateMetrics(){
   if(!a.options.length)for(const [k,m] of Object.entries(PHASE8_METRICS)){a.add(new Option(m.label,k));b.add(new Option(m.label,k));}
   if(!a.value)a.value='gross';if(!b.value)b.value='takeHome';
 }
+function phase8SyncChartTypeAvailability(){
+  const sel=$('phase8ChartType'); if(!sel)return;
+  const period=$('phase8Period')?.value||'current';
+  const dailyMode=window.phase8CustomActive||period==='current';
+  const stacked=[...sel.options].find(o=>o.value==='stacked');
+  if(stacked)stacked.disabled=dailyMode;
+  if(dailyMode&&sel.value==='stacked')sel.value='bar';
+}
 function renderMonthlyDashboard(){
+  phase8SyncChartTypeAvailability();
   if(!$('phase8Chart'))return;
   phase8PopulateMetrics();
   const current=phase8CurrentRow(),actual=current.count||0;
@@ -341,8 +350,11 @@ function drawPhase8Chart(rows){
   const sameUnit=!!secondary && pMetric.unit===sMetric.unit;
 
   const pad={l:58,r:secondary&&!sameUnit?58:18,t:24,b:54},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
-  let maxP=Math.max(1,...pVals)*1.08;
-  let maxS=secondary?Math.max(1,...sVals)*1.08:1;
+  const pMoney=['gross','grossPay','takeHome','hourly'].includes(primary);
+  const sMoney=secondary&&['gross','grossPay','takeHome','hourly'].includes(secondary);
+  const moneyStep=20000;
+  let maxP=pMoney?Math.max(moneyStep,Math.ceil(Math.max(1,...pVals)/moneyStep)*moneyStep):Math.max(1,...pVals)*1.08;
+  let maxS=secondary?(sMoney?Math.max(moneyStep,Math.ceil(Math.max(1,...sVals)/moneyStep)*moneyStep):Math.max(1,...sVals)*1.08):1;
 
   // 積み上げ棒は、同じ単位の2系列だけ本当に積み上げる。
   // 第1軸のみなら通常の棒グラフと同じ値・高さ。
@@ -352,15 +364,19 @@ function drawPhase8Chart(rows){
   }
 
   ctx.font='12px sans-serif';ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){
-    const y=pad.t+ch*i/4;
+  const pTicks=pMoney?Math.round(maxP/moneyStep):4;
+  const tickCount=Math.max(1,pTicks);
+  for(let i=0;i<=tickCount;i++){
+    const frac=i/tickCount,y=pad.t+ch*frac;
     ctx.strokeStyle='rgba(127,127,127,.35)';
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
     ctx.textAlign='left';ctx.fillStyle='#17212b';
-    ctx.fillText(phase8AxisNumber(maxP*(1-i/4),primary),4,y+4);
+    const pv=maxP*(1-frac);
+    ctx.fillText(pMoney?(pv===0?'0':`${Math.round(pv/10000)}万円`):phase8AxisNumber(pv,primary),4,y+4);
     if(secondary&&!sameUnit){
       ctx.fillStyle='#a52a2a';
-      ctx.fillText(phase8AxisNumber(maxS*(1-i/4),secondary),w-pad.r+5,y+4);
+      const sv=maxS*(1-frac);
+      ctx.fillText(sMoney?(sv===0?'0':`${Math.round(sv/10000)}万円`):phase8AxisNumber(sv,secondary),w-pad.r+5,y+4);
     }
   }
 

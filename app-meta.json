@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260825-06",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260825-06-batch-fixes",
-  "releasedAtJst": "2026/08/25 01:25:31 JST",
+  "build": "20260825-07",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260825-07-batched-ui-chart-fixes",
+  "releasedAtJst": "2026/08/25 01:56:36 JST",
   "environment": "DEVELOP"
 }

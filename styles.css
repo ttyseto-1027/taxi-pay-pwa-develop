@@ -915,3 +915,15 @@ tr[hidden] { display: none !important; }
 #phase8RemoveSecondary[hidden]{display:none!important}
 
 .tap-number-guide{font-size:12px;color:#52606d;margin:0 0 6px 2px;text-align:left}.tap-number-guide[hidden]{display:none!important}
+
+/* Build 20260825-07: keep break fields visible beside keypad on desktop */
+@media (min-width: 769px){
+  #tapNumberDialog[open]{
+    position:fixed;
+    left:auto;
+    right:clamp(24px,8vw,120px);
+    top:50%;
+    transform:translateY(-50%);
+    margin:0;
+  }
+}
