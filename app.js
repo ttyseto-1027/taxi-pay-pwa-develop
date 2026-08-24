@@ -66,7 +66,11 @@ function paidLeaveShiftCredit(e){const n=leaveUnits(e);return n?(isKakuShift()?n
 function addOneYearISO(s){if(!s)return '';const [y,m,d]=s.split('-').map(Number),x=new Date(y+1,m-1,d);return fmtDate(x);}
 function applyDuePaidLeaveGrant(){const st=state.settings,date=st.paidLeaveNextGrantDate,days=Number(st.paidLeaveNextGrantDays||0);if(!date||days<=0||date>today())return false;st.paidLeaveAppliedGrants=Array.isArray(st.paidLeaveAppliedGrants)?st.paidLeaveAppliedGrants:[];if(!st.paidLeaveAppliedGrants.some(x=>x.date===date))st.paidLeaveAppliedGrants.push({date,days,appliedAt:new Date().toISOString()});st.paidLeaveNextGrantDate=addOneYearISO(date);saveState();return true;}
 function paidLeaveBalance(excludeId=''){const st=state.settings,grants=(st.paidLeaveAppliedGrants||[]).reduce((a,x)=>a+Number(x.days||0),0),closed=(st.paidLeaveUsageHistory||[]).reduce((a,x)=>a+Number(x.days||0),0),open=(state.entries||[]).filter(e=>e.id!==excludeId).reduce((a,e)=>a+leaveUnits(e),0);return Math.max(0,Number(st.paidLeaveOpeningBalance||0)+grants-closed-open);}
-function setPaidLeaveMode(){const n=Number(document.querySelector('input[name="paidLeaveType"]:checked')?.value||0),leave=n>0;for(const id of ['grossRevenue','otherPlus','otherMinus','idleA','idleB','clockIn','clockOut','holidayType','normalBreakHours','normalBreakMinutes','nightBreakHours','nightBreakMinutes','hadAccident','hadViolation']){const el=$(id);if(!el)continue;el.disabled=leave;if(leave){if(el.type==='checkbox')el.checked=false;else if(el.tagName==='SELECT')el.selectedIndex=0;else el.value='';}}if($('adjustedGrossRevenue'))$('adjustedGrossRevenue').value='';$('netRevenue').value='';const editingId=$('editingId').value||'';$('paidLeaveEntryNote').textContent=leave?`${leaveLabel(n)}を使用します。保存後の残数：${Math.max(0,paidLeaveBalance(editingId)-n)}日`:`通常勤務です。有給残数：${paidLeaveBalance(editingId)}日`;}
+function setPaidLeaveMode(){const n=Number(document.querySelector('input[name="paidLeaveType"]:checked')?.value||0),leave=n>0;for(const id of ['grossRevenue','otherPlus','otherMinus','idleA','idleB','clockIn','clockOut','holidayType','normalBreakHours','normalBreakMinutes','nightBreakHours','nightBreakMinutes','hadAccident','hadViolation']){const el=$(id);if(!el)continue;el.disabled=leave;if(leave){if(el.type==='checkbox')el.checked=false;else if(el.tagName==='SELECT')el.selectedIndex=0;
+else if(el.tagName==='BUTTON'){
+  const span=el.querySelector('span');
+  if(span)span.textContent=el.id.toLowerCase().includes('minutes')?'00':'0';
+}else el.value='';}}if($('adjustedGrossRevenue'))$('adjustedGrossRevenue').value='';$('netRevenue').value='';const editingId=$('editingId').value||'';$('paidLeaveEntryNote').textContent=leave?`${leaveLabel(n)}を使用します。保存後の残数：${Math.max(0,paidLeaveBalance(editingId)-n)}日`:`通常勤務です。有給残数：${paidLeaveBalance(editingId)}日`;}
 function renderPaidLeaveHistory(){const box=$('paidLeaveHistoryList');if(!box)return;const grants=(state.settings.paidLeaveAppliedGrants||[]).map(x=>({date:x.date,text:`${x.days}日付与`})),uses=(state.settings.paidLeaveUsageHistory||[]).map(x=>({date:x.periodEnd||x.closedAt?.slice(0,10)||'',text:`${x.days}日使用（${x.month}給与）`})),rows=[...grants,...uses].sort((a,b)=>b.date.localeCompare(a.date));box.innerHTML=rows.length?'<strong>付与・使用履歴</strong>'+rows.map(x=>`<div>${x.date}　${x.text}</div>`).join(''):'<span class="note">付与・使用履歴はまだありません。</span>';}
 
 function parseDate(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
@@ -250,10 +254,45 @@ function renderMonthlyDashboard(){
   $('monthlyTakeHome').textContent=yen(current.takeHome);
   $('monthlyProgressNote').textContent=`${current.month.replace('-','年')}月は進行中のデータです。`;
   let rows=phase8Rows(),period=$('phase8Period')?.value||'12';
-  if(period!=='all')rows=rows.slice(-Number(period));
+  if(window.phase8CustomActive) rows=phase8CustomRows();
+  else if(period==='current') rows=rows.slice(-1);
+  else if(period!=='all') rows=rows.slice(-Number(period));
   const body=$('phase8TableBody');body.innerHTML='';
   for(const r of rows){const tr=document.createElement('tr'),tag=r.inProgress?' <span class="phase8-progress">進行中</span>':'';tr.innerHTML=`<td>${r.month}${tag}</td><td>${yen(r.gross)}</td><td>${r.grossPay==null?'—':yen(r.grossPay)}</td><td>${yen(r.takeHome)}</td><td>${r.workMinutes?phase8FormatMetric('takeHomeHourly',PHASE8_METRICS.takeHomeHourly.value(r)):'—'}</td><td>${r.grossPay==null?'—':phase8FormatMetric('effectiveReturn',PHASE8_METRICS.effectiveReturn.value(r))}</td><td>${phase8FormatMetric('takeHomeReturn',PHASE8_METRICS.takeHomeReturn.value(r))}</td>`;body.appendChild(tr);}
   drawPhase8Chart(rows);
+}
+function phase8AllDailyEntries(){
+  const byId=new Map();
+  for(const e of (state.entries||[]))byId.set(e.id||`${e.date}|${Math.random()}`,e);
+  for(const h of (state.history||[])){
+    for(const e of (Array.isArray(h.dailyEntries)?h.dailyEntries:[]))byId.set(e.id||`${e.date}|${Math.random()}`,e);
+  }
+  return [...byId.values()].filter(e=>e?.date).sort((a,b)=>a.date.localeCompare(b.date));
+}
+function phase8EstimateForEntries(entries,label){
+  const actual=entries.filter(e=>leaveUnits(e)===0);
+  const gross=actual.reduce((s,e)=>s+payrollGross(e),0);
+  const net=actual.reduce((s,e)=>s+Math.round(calcNet(payrollGross(e))),0);
+  const revenue=monthlyRevenue(net),c=commission(revenue),premium=premiumCalculation(actual,c);
+  const accidentFree=actual.filter(e=>!e.hadAccident).length*Number(state.settings.accidentFreeAllowance||0);
+  const violationFree=actual.filter(e=>!e.hadViolation).length*Number(state.settings.violationFreeAllowance||0);
+  const paidLeaveDays=entries.reduce((s,e)=>s+leaveUnits(e),0);
+  const paidLeavePay=paidLeaveDays*Number(state.settings.paidLeaveDailyRate||0);
+  const grossPay=Math.ceil(c.total+premium.total+accidentFree+violationFree+paidLeavePay);
+  const workMinutes=actual.reduce((s,e)=>s+entryTimeInfo(e).work,0);
+  return {month:label,gross,grossPay,takeHome:grossPay,workMinutes,count:actual.length,inProgress:true,custom:true};
+}
+function phase8CustomRows(){
+  const start=$('phase8StartDate')?.value||'',end=$('phase8EndDate')?.value||'';
+  if(!start||!end||start>end)return [];
+  const entries=phase8AllDailyEntries().filter(e=>e.date>=start&&e.date<=end);
+  const groups=new Map();
+  for(const e of entries){
+    const key=e.date;
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(e);
+  }
+  return [...groups.entries()].map(([date,rows])=>phase8EstimateForEntries(rows,date.slice(5).replace('-','/')));
 }
 function drawPhase8Chart(rows){
   const canvas=$('phase8Chart'),empty=$('phase8Empty');if(!canvas)return;
@@ -298,14 +337,109 @@ const ADMIN_FIELDS=['fareRevisionCoefficient','payRevenueCoefficient','taxRate',
 function loadAdminForm(){for(const k of ADMIN_FIELDS)$(k).value=state.settings[k];}
 function saveAdminForm(){for(const k of ADMIN_FIELDS)state.settings[k]=Number($(k).value||0);saveState();render();}
 function breakValue(prefix){return Number($(prefix+'Hours').value||0)*60+Number($(prefix+'Minutes').value||0);}
-function fillNumberSelect(id,max){const select=$(id);select.innerHTML='';for(let i=0;i<=max;i++){const option=document.createElement('option');option.value=String(i);option.textContent=String(i).padStart(2,'0');select.appendChild(option);}}
-function initBreakPickers(){fillNumberSelect('normalBreakHours',24);fillNumberSelect('normalBreakMinutes',59);fillNumberSelect('nightBreakHours',24);fillNumberSelect('nightBreakMinutes',59);}
-function setBreak(prefix,total){const minutes=Math.max(0,Number(total||0));$(prefix+'Hours').value=String(Math.min(24,Math.floor(minutes/60)));$(prefix+'Minutes').value=String(Math.min(59,minutes%60));}
+let tapNumberTarget='';
+let tapNumberBuffer='';
+let pendingBreakNormalize='';
+let confirmedLongBreakSignature='';
+
+function tapValue(id){
+  const el=$(id);
+  if(!el)return 0;
+  return Math.max(0,Number(String(el.textContent||'0').replace('--','0'))||0);
+}
+function setTapValue(id,value,pad2=false){
+  const el=$(id); if(!el)return;
+  const n=Math.max(0,Number(value||0));
+  el.textContent=pad2?String(n).padStart(2,'0'):String(n);
+}
+function initBreakPickers(){}
+function setBreak(prefix,total){
+  const minutes=Math.max(0,Number(total||0));
+  setTapValue(prefix+'Hours',Math.floor(minutes/60),false);
+  setTapValue(prefix+'Minutes',minutes%60,true);
+}
+function breakValue(prefix){
+  return tapValue(prefix+'Hours')*60+tapValue(prefix+'Minutes');
+}
+function normalizeBreak(prefix){
+  const total=breakValue(prefix);
+  setBreak(prefix,total);
+  return total;
+}
+function normalizeAllBreaks(){
+  pendingBreakNormalize='';
+  return {normal:normalizeBreak('normalBreak'),night:normalizeBreak('nightBreak')};
+}
+function setClockParts(prefix,value){
+  const parts=String(value||'').split(':');
+  const valid=!!value&&parts.length===2;
+  if($(prefix+'Hour'))$(prefix+'Hour').textContent=valid?String(Number(parts[0])).padStart(2,'0'):'--';
+  if($(prefix+'Minute'))$(prefix+'Minute').textContent=valid?String(Number(parts[1])).padStart(2,'0'):'--';
+  $(prefix).value=valid?`${String(Number(parts[0])).padStart(2,'0')}:${String(Number(parts[1])).padStart(2,'0')}`:'';
+}
+function syncClock(prefix,showAlert=true){
+  const hs=$(prefix+'Hour')?.textContent||'--';
+  const ms=$(prefix+'Minute')?.textContent||'--';
+  if(hs==='--'||ms==='--'){$(prefix).value='';return false;}
+  const h=Number(hs),m=Number(ms);
+  if(h<0||h>23||m<0||m>59){
+    if(showAlert)alert('時刻は「時 0～23」「分 0～59」で入力してください。');
+    return false;
+  }
+  $(prefix).value=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  return true;
+}
+function openTapNumber(targetId){
+  // A different operation outside the current break group commits its normalization.
+  const group=document.querySelector(`[data-duration-prefix="${pendingBreakNormalize}"]`);
+  const nextButton=document.querySelector(`[data-tap-target="${targetId}"]`);
+  if(pendingBreakNormalize && (!group || !nextButton || !group.contains(nextButton))){
+    normalizeBreak(pendingBreakNormalize);
+    pendingBreakNormalize='';
+    checkLongBreakWarning(false);
+  }
+  tapNumberTarget=targetId;
+  const current=$(targetId)?.textContent||'0';
+  tapNumberBuffer=current==='--'?'':String(Number(current)||0);
+  $('tapNumberDisplay').textContent=tapNumberBuffer||'0';
+  $('tapNumberDialog').showModal();
+}
+function closeTapNumber(commit){
+  if(commit&&tapNumberTarget){
+    const value=Math.max(0,Number(tapNumberBuffer||0));
+    const minuteField=tapNumberTarget.toLowerCase().includes('minute');
+    setTapValue(tapNumberTarget,value,minuteField);
+    if(tapNumberTarget.startsWith('normalBreak'))pendingBreakNormalize='normalBreak';
+    if(tapNumberTarget.startsWith('nightBreak'))pendingBreakNormalize='nightBreak';
+    if(tapNumberTarget.startsWith('clockIn'))syncClock('clockIn',false);
+    if(tapNumberTarget.startsWith('clockOut'))syncClock('clockOut',false);
+    confirmedLongBreakSignature='';
+  }
+  tapNumberTarget='';
+  tapNumberBuffer='';
+  $('tapNumberDialog').close();
+}
+function longBreakSignature(){
+  return `${$('clockIn')?.value||''}|${$('clockOut')?.value||''}|${breakValue('normalBreak')}|${breakValue('nightBreak')}`;
+}
+function checkLongBreakWarning(force){
+  if(!syncClock('clockIn',false)||!syncClock('clockOut',false))return true;
+  const start=timeToMinutes($('clockIn').value),out=timeToMinutes($('clockOut').value);
+  let end=out;if(end<=start)end+=1440;
+  const duration=end-start;
+  const normal=breakValue('normalBreak'),night=breakValue('nightBreak'),total=normal+night;
+  if(total < duration/3)return true;
+  const sig=longBreakSignature();
+  if(!force&&confirmedLongBreakSignature===sig)return true;
+  const ok=confirm(`休憩時間が拘束時間の1/3以上になっています。\n拘束時間：${minutesText(duration)}\n休憩時間：${minutesText(total)}\n\nこの休憩時間で間違いありませんか？`);
+  if(ok)confirmedLongBreakSignature=sig;
+  return ok;
+}
 function clearEntry(){
   $('entryForm').reset();
   $('date').value=today();
   for(const id of ['otherPlus','otherMinus','idleA','idleB'])if($(id))$(id).value='0';
-  setBreak('normalBreak',0);setBreak('nightBreak',0);
+  setBreak('normalBreak',0);setBreak('nightBreak',0);setClockParts('clockIn','');setClockParts('clockOut','');pendingBreakNormalize='';confirmedLongBreakSignature='';
   $('editingId').value='';
   if($('adjustedGrossRevenue'))$('adjustedGrossRevenue').value='';
   $('netRevenue').value='';
@@ -337,6 +471,28 @@ for(const id of ['grossRevenue','otherPlus','otherMinus','idleA','idleB']){
     updateRevenuePreview();
   });
 }document.querySelectorAll('input[name="paidLeaveType"]').forEach(x=>x.addEventListener('change',setPaidLeaveMode));
+document.querySelectorAll('.tap-number-field').forEach(btn=>btn.addEventListener('click',()=>openTapNumber(btn.dataset.tapTarget)));
+$('tapNumberDialog')?.querySelectorAll('[data-key]').forEach(btn=>btn.addEventListener('click',()=>{
+  const key=btn.dataset.key;
+  if(key==='clear')tapNumberBuffer='';
+  else if(key==='back')tapNumberBuffer=tapNumberBuffer.slice(0,-1);
+  else if(tapNumberBuffer.length<4)tapNumberBuffer=(tapNumberBuffer==='0'?'':tapNumberBuffer)+key;
+  $('tapNumberDisplay').textContent=tapNumberBuffer||'0';
+}));
+$('tapNumberOk')?.addEventListener('click',()=>closeTapNumber(true));
+$('tapNumberCancel')?.addEventListener('click',()=>closeTapNumber(false));
+
+// Normal休憩/深夜休憩のセットから別操作へ移った時に 78分→1時間18分 のように正規化。
+document.addEventListener('pointerdown',ev=>{
+  if(!pendingBreakNormalize)return;
+  const group=document.querySelector(`[data-duration-prefix="${pendingBreakNormalize}"]`);
+  if(group&&group.contains(ev.target))return;
+  if(ev.target.closest('#tapNumberDialog'))return;
+  normalizeBreak(pendingBreakNormalize);
+  pendingBreakNormalize='';
+  checkLongBreakWarning(false);
+},true);
+
 $('entryForm').addEventListener('submit',ev=>{
   ev.preventDefault();
   const paidLeaveUnits=Number(document.querySelector('input[name="paidLeaveType"]:checked')?.value||0);
@@ -356,7 +512,10 @@ $('entryForm').addEventListener('submit',ev=>{
     saveState();clearEntry();render();return;
   }
 
-  const grossSales=Math.max(0,Number($('grossRevenue').value||0));
+  if(!syncClock('clockIn')||!syncClock('clockOut'))return;
+   normalizeAllBreaks();
+   if(!checkLongBreakWarning(true))return;
+   const grossSales=Math.max(0,Number($('grossRevenue').value||0));
   const otherPlus=adjustmentValue('otherPlus');
   const otherMinus=adjustmentValue('otherMinus');
   const idleA=adjustmentValue('idleA');
@@ -389,7 +548,7 @@ $('entriesTable').addEventListener('click',ev=>{const edit=ev.target.dataset.edi
   $('otherMinus').value=Number(e.otherMinus||0);
   $('idleA').value=Number(e.idleA ?? e.idleAdjustmentA ?? 0);
   $('idleB').value=Number(e.idleB ?? e.idleAdjustmentB ?? 0);
-  $('clockIn').value=e.clockIn;$('clockOut').value=e.clockOut;
+  setClockParts('clockIn',e.clockIn);setClockParts('clockOut',e.clockOut);
   setBreak('normalBreak',e.normalBreakMinutes);setBreak('nightBreak',e.nightBreakMinutes);
   $('holidayType').value=e.holidayType;$('hadAccident').checked=e.hadAccident;$('hadViolation').checked=e.hadViolation;
   updateRevenuePreview();
@@ -421,14 +580,24 @@ $('exportCsv').onclick=()=>{
   a.download=`taxi-pay-${$('currentMonth').value}.csv`;
   a.click();
 };
-$('closeMonth').onclick=()=>{const entries=currentEntries();if(!entries.length)return alert('給与締めするデータがありません。');const ym=$('currentMonth').value,pp=payrollPeriod(ym);if(!confirm(`${ym}給与を締めます。履歴保存後、この期間の勤務データは削除されます。`))return;const t=totals(entries);state.settings.paidLeaveUsageHistory=Array.isArray(state.settings.paidLeaveUsageHistory)?state.settings.paidLeaveUsageHistory:[];if(t.paidLeaveDays>0&&!state.settings.paidLeaveUsageHistory.some(x=>x.month===ym))state.settings.paidLeaveUsageHistory.push({month:ym,days:t.paidLeaveDays,periodStart:pp.start,periodEnd:pp.end,closedAt:new Date().toISOString()});state.history.push({month:ym,shiftType:state.settings.shiftType,periodStart:pp.start,periodEnd:pp.end,gross:t.gross,grossPay:t.grossPay,commission:t.c.total,takeHome:t.takeHome,workMinutes:t.premium.work,breakMinutes:entries.filter(e=>leaveUnits(e)===0).reduce((s,e)=>s+Number(e.normalBreakMinutes||0)+Number(e.nightBreakMinutes||0),0),count:entries.filter(e=>leaveUnits(e)===0).length,paidLeaveDays:t.paidLeaveDays,closedAt:new Date().toISOString()});state.entries=state.entries.filter(e=>payrollMonthOf(e.date)!==ym);saveState();render();};
+$('closeMonth').onclick=()=>{const entries=currentEntries();if(!entries.length)return alert('給与締めするデータがありません。');const ym=$('currentMonth').value,pp=payrollPeriod(ym);if(!confirm(`${ym}給与を締めます。履歴保存後、この期間の勤務データは削除されます。`))return;const t=totals(entries);state.settings.paidLeaveUsageHistory=Array.isArray(state.settings.paidLeaveUsageHistory)?state.settings.paidLeaveUsageHistory:[];if(t.paidLeaveDays>0&&!state.settings.paidLeaveUsageHistory.some(x=>x.month===ym))state.settings.paidLeaveUsageHistory.push({month:ym,days:t.paidLeaveDays,periodStart:pp.start,periodEnd:pp.end,closedAt:new Date().toISOString()});state.history.push({month:ym,shiftType:state.settings.shiftType,periodStart:pp.start,periodEnd:pp.end,gross:t.gross,grossPay:t.grossPay,commission:t.c.total,takeHome:t.takeHome,workMinutes:t.premium.work,breakMinutes:entries.filter(e=>leaveUnits(e)===0).reduce((s,e)=>s+Number(e.normalBreakMinutes||0)+Number(e.nightBreakMinutes||0),0),count:entries.filter(e=>leaveUnits(e)===0).length,paidLeaveDays:t.paidLeaveDays,dailyEntries:clone(entries),closedAt:new Date().toISOString()});state.entries=state.entries.filter(e=>payrollMonthOf(e.date)!==ym);saveState();render();};
 phase8PopulateMetrics();
-$('phase8Period')?.addEventListener('change',renderMonthlyDashboard);
+window.phase8CustomActive=false;
+$('phase8Period')?.addEventListener('change',()=>{window.phase8CustomActive=false;$('phase8CustomPeriod').hidden=true;renderMonthlyDashboard();});
+$('phase8ToggleCustomPeriod')?.addEventListener('click',()=>{$('phase8CustomPeriod').hidden=!$('phase8CustomPeriod').hidden;});
+$('phase8ApplyCustomPeriod')?.addEventListener('click',()=>{
+  const s=$('phase8StartDate').value,e=$('phase8EndDate').value;
+  if(!s||!e)return alert('開始日と終了日を指定してください。');
+  if(s>e)return alert('開始日は終了日以前の日付を指定してください。');
+  window.phase8CustomActive=true;
+  renderMonthlyDashboard();
+});
+$('phase8CancelCustomPeriod')?.addEventListener('click',()=>{window.phase8CustomActive=false;$('phase8CustomPeriod').hidden=true;renderMonthlyDashboard();});
 $('phase8Primary')?.addEventListener('change',renderMonthlyDashboard);
 $('phase8Secondary')?.addEventListener('change',renderMonthlyDashboard);
 $('phase8AddSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=false;$('phase8RemoveSecondary').hidden=false;$('phase8AddSecondary').hidden=true;renderMonthlyDashboard();});
 $('phase8RemoveSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=true;$('phase8RemoveSecondary').hidden=true;$('phase8AddSecondary').hidden=false;renderMonthlyDashboard();});
-window.addEventListener('resize',()=>{if(!$('phase8Chart')?.closest('[hidden]'))drawPhase8Chart((()=>{let r=phase8Rows(),p=$('phase8Period')?.value||'12';return p==='all'?r:r.slice(-Number(p));})());});
+window.addEventListener('resize',()=>{if(!$('phase8Chart')?.closest('[hidden]'))drawPhase8Chart((()=>{let r=phase8Rows(),p=$('phase8Period')?.value||'12';return window.phase8CustomActive?phase8CustomRows():p==='all'?r:p==='current'?r.slice(-1):r.slice(-Number(p));})());});
 $('openSettings').onclick=()=>{loadSettingsForm();$('settingsDialog').showModal();};$('shiftType').onchange=()=>{$('shiftRuleInfo').innerHTML=ruleDescription($('shiftType').value);const r=SHIFT_RULES[$('shiftType').value];$('standardShiftHoursDisplay').value=minutesText(r.shiftMinutes);$('standardHoursDisplay').value=minutesText(r.monthlyMinutes);};$('saveSettings').onclick=e=>{e.preventDefault();saveSettingsForm();$('settingsDialog').close();};
 $('openAdmin').onclick=()=>{const p=prompt('開発者パスワードを入力してください。');if(p!==ADMIN_PASSWORD)return alert('パスワードが違います。');loadAdminForm();$('adminDialog').showModal();};$('saveAdmin').onclick=e=>{e.preventDefault();saveAdminForm();$('adminDialog').close();alert('開発者設定を保存しました。');};
 $('onboardingShiftType').onchange=()=>{$('onboardingRule').innerHTML=ruleDescription($('onboardingShiftType').value);};$('completeOnboarding').onclick=e=>{e.preventDefault();if(!$('agreeDisclaimer').checked)return alert('確認欄にチェックしてください。');state.settings.shiftType=$('onboardingShiftType').value;state.initialized=true;saveState();$('onboardingDialog').close();render();};

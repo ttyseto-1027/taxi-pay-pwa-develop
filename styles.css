@@ -838,3 +838,23 @@ tr[hidden] { display: none !important; }
 /* Phase 8: 月次集計ダッシュボード */
 .phase8-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:14px 0}.phase8-controls label{min-width:150px;flex:1}.phase8-chart-wrap{width:100%;overflow:hidden;margin-top:10px}.phase8-chart-wrap canvas{display:block;max-width:100%;min-height:300px}.phase8-legend{font-weight:600;margin:8px 0}.phase8-table{width:100%;min-width:780px}.phase8-progress{display:inline-block;font-size:.75em;padding:2px 6px;border:1px solid currentColor;border-radius:999px;white-space:nowrap}.phase8-dashboard .table-scroll{overflow-x:auto;margin-top:16px}
 @media(max-width:640px){.phase8-controls{display:grid;grid-template-columns:1fr}.phase8-controls label,.phase8-controls button{width:100%}.phase8-chart-wrap canvas{min-height:280px}}
+
+
+/* 2026-08-24: tap-only work time / break input */
+.tap-time-row{display:flex;align-items:center;gap:8px;margin-top:5px}
+.tap-number-field{min-width:64px;min-height:48px;padding:10px 12px;background:#fff;color:#17212b;border:1px solid #b9c8cf;border-radius:9px;font-size:1.12rem;font-weight:800;text-align:center}
+.tap-number-field:hover{filter:none;background:#f6fafb}
+.break-picker.tap-duration-group{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.break-picker.tap-duration-group label{display:grid;grid-template-columns:auto minmax(64px,1fr) auto;gap:8px;align-items:center}
+.tap-number-dialog{width:min(92vw,330px);border:0;border-radius:16px;padding:18px;box-shadow:0 18px 60px #0005}
+.tap-number-dialog::backdrop{background:#0d202899}
+.tap-number-display{text-align:right;font-size:2rem;font-weight:900;min-height:58px;padding:8px 12px;margin-bottom:12px;border:1px solid #b9c8cf;border-radius:9px;background:#f7fafb}
+.tap-number-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tap-number-pad button{min-height:50px;font-size:1.08rem}
+.phase8-custom-period{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:end;margin:10px 0 14px}
+.phase8-custom-period .full{grid-column:1/-1;margin:0}
+@media(max-width:640px){
+  .break-picker.tap-duration-group{grid-template-columns:1fr}
+  .phase8-custom-period{grid-template-columns:1fr}
+  .phase8-custom-period .full{grid-column:auto}
+}
