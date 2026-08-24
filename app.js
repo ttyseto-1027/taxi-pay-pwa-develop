@@ -467,7 +467,7 @@ function clearEntry(){
   $('entryForm').reset();
   $('date').value=today();
   for(const id of ['otherPlus','otherMinus','idleA','idleB'])if($(id))$(id).value='0';
-  setBreak('normalBreak',0);setBreak('nightBreak',0);setClockParts('clockIn','');setClockParts('clockOut','');pendingBreakNormalize='';confirmedLongBreakSignature='';
+  setBreak('normalBreak',0);setBreak('nightBreak',0);setClockParts('clockIn','');setClockParts('clockOut','');confirmedLongBreakSignature='';
   $('editingId').value='';
   if($('adjustedGrossRevenue'))$('adjustedGrossRevenue').value='';
   $('netRevenue').value='';

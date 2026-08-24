@@ -867,3 +867,24 @@ tr[hidden] { display: none !important; }
 .tap-break-units button{min-height:48px;font-size:1rem}
 
 .phase8-controls select#phase8ChartType{min-width:120px}
+
+
+/* Build 20260824-18 hotfix */
+.phase8-custom-period[hidden]{display:none!important}
+
+#phase8SecondaryWrap{
+  flex:0 1 280px;
+  width:min(280px,100%);
+  max-width:280px;
+}
+#phase8Secondary{
+  width:100%;
+  max-width:280px;
+}
+@media(max-width:640px){
+  #phase8SecondaryWrap,
+  #phase8Secondary{
+    width:100%;
+    max-width:none;
+  }
+}
