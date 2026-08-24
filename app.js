@@ -324,6 +324,7 @@ function phase8CustomRows(){
   }
   return [...groups.entries()].map(([date,rows])=>{const r=phase8EstimateForEntries(rows,date.slice(5).replace('-','/'));r.date=date;r.dailyAxis=true;return r;});
 }
+function phase8WorkdayColor(i){const hue=Math.round((i*137.508)%360);const light=42+(i%3)*8;return `hsl(${hue} 58% ${light}%)`;}
 function drawPhase8Chart(rows){
   const canvas=$('phase8Chart'),empty=$('phase8Empty');if(!canvas)return;
   const ctx=canvas.getContext('2d'),dpr=window.devicePixelRatio||1,w=Math.max(320,canvas.parentElement.clientWidth||900),h=360;
@@ -398,13 +399,25 @@ function drawPhase8Chart(rows){
           ctx.fillRect(cx+2,pad.t+ch-sH,sideBarW,sH);
         }
       }else if(chartType==='stacked'){
-        const pH=ch*Math.min(1,pVals[i]/maxP);
-        ctx.fillStyle='#0f4c5c';
-        ctx.fillRect(cx-groupW/2,pad.t+ch-pH,groupW,pH);
-        if(secondary){
-          const sH=ch*Math.min(1,sVals[i]/maxP);
-          ctx.fillStyle='#c94a4a';
-          ctx.fillRect(cx-groupW/2,pad.t+ch-pH-sH,groupW,sH);
+        if(!secondary && rows.every(r=>r.dailyAxis)){
+          let bottom=pad.t+ch;
+          for(let seg=0;seg<=i;seg++){
+            const prev=seg===0?0:pVals[seg-1];
+            const increment=Math.max(0,pVals[seg]-prev);
+            const segH=ch*Math.min(1,increment/maxP);
+            ctx.fillStyle=phase8WorkdayColor(seg);
+            ctx.fillRect(cx-groupW/2,bottom-segH,groupW,segH);
+            bottom-=segH;
+          }
+        }else{
+          const pH=ch*Math.min(1,pVals[i]/maxP);
+          ctx.fillStyle='#0f4c5c';
+          ctx.fillRect(cx-groupW/2,pad.t+ch-pH,groupW,pH);
+          if(secondary){
+            const sH=ch*Math.min(1,sVals[i]/maxP);
+            ctx.fillStyle='#c94a4a';
+            ctx.fillRect(cx-groupW/2,pad.t+ch-pH-sH,groupW,sH);
+          }
         }
       }
     });
@@ -517,6 +530,7 @@ function openTapNumber(targetId){
   tapNumberBuffer='';
   $('tapNumberDisplay').textContent='';
   if($('tapBreakUnits'))$('tapBreakUnits').hidden=true;
+  if($('tapNumberGuide'))$('tapNumberGuide').hidden=true;
   $('tapNumberDialog').showModal();
 }
 function openBreakNumber(prefix){
@@ -528,6 +542,8 @@ function openBreakNumber(prefix){
   // 休憩時間を上書きするときも、数字パネルは常に空欄から開始する。
   $('tapNumberDisplay').textContent='';
   $('tapBreakUnits').hidden=false;
+  $('tapNumberGuide').hidden=false;
+  $('tapNumberGuide').textContent='時間を入力してください';
   $('tapNumberDialog').showModal();
 }
 function applyClockBuffer(){
@@ -622,6 +638,7 @@ $('tapBreakUnits')?.querySelectorAll('[data-unit]').forEach(btn=>btn.addEventLis
   if(unit==='hour'){
     // 「2」→「時間」で2時間を確定。分は未入力のままなので00分扱い。
     breakDraftHours=value;
+        if($('tapNumberGuide'))$('tapNumberGuide').textContent='分を入力してください';
     setBreak(activeBreakPrefix,value*60);
     tapNumberBuffer='';
     $('tapNumberDisplay').textContent='0';
