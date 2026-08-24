@@ -325,6 +325,20 @@ function phase8CustomRows(){
   return [...groups.entries()].map(([date,rows])=>{const r=phase8EstimateForEntries(rows,date.slice(5).replace('-','/'));r.date=date;r.dailyAxis=true;return r;});
 }
 function phase8WorkdayColor(i){const hue=Math.round((i*137.508)%360);const light=42+(i%3)*8;return `hsl(${hue} 58% ${light}%)`;}
+function phase8MonthlyWorkdaySegments(row,metricKey){
+  if(!row?.month || row.dailyAxis)return [];
+  const ym=row.month;
+  const pp=payrollPeriod(ym);
+  const entries=(state.entries||[])
+    .filter(e=>e?.date && e.date>=pp.start && e.date<=pp.end)
+    .slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const groups=new Map();
+  entries.forEach(e=>{if(!groups.has(e.date))groups.set(e.date,[]);groups.get(e.date).push(e);});
+  return [...groups.entries()].map(([date,dayEntries])=>{
+    const day=phase8EstimateForEntries(dayEntries,date.slice(5).replace('-','/'));
+    return {date,value:PHASE8_METRICS[metricKey].value(day)};
+  });
+}
 function drawPhase8Chart(rows){
   const canvas=$('phase8Chart'),empty=$('phase8Empty');if(!canvas)return;
   const ctx=canvas.getContext('2d'),dpr=window.devicePixelRatio||1,w=Math.max(320,canvas.parentElement.clientWidth||900),h=360;
@@ -352,6 +366,10 @@ function drawPhase8Chart(rows){
   if(chartType==='stacked' && secondary && sameUnit){
     maxP=Math.max(1,...pVals.map((v,i)=>v+sVals[i]))*1.08;
     maxS=maxP;
+  }
+  if(chartType==='stacked' && !secondary && rows.every(r=>!r.dailyAxis)){
+    const stackedTotals=rows.map(r=>phase8MonthlyWorkdaySegments(r,primary).reduce((s,x)=>s+x.value,0));
+    if(stackedTotals.length)maxP=pMoney?Math.max(moneyStep,Math.ceil(Math.max(1,...stackedTotals)/moneyStep)*moneyStep):Math.max(1,...stackedTotals)*1.08;
   }
 
   ctx.font='12px sans-serif';ctx.lineWidth=1;
@@ -406,16 +424,15 @@ function drawPhase8Chart(rows){
           ctx.fillRect(cx+2,pad.t+ch-sH,sideBarW,sH);
         }
       }else if(chartType==='stacked'){
-        if(!secondary && rows.every(r=>r.dailyAxis)){
+        if(!secondary && rows.every(r=>!r.dailyAxis)){
+          const segments=phase8MonthlyWorkdaySegments(r,primary);
           let bottom=pad.t+ch;
-          for(let seg=0;seg<=i;seg++){
-            const prev=seg===0?0:pVals[seg-1];
-            const increment=Math.max(0,pVals[seg]-prev);
-            const segH=ch*Math.min(1,increment/maxP);
-            ctx.fillStyle=phase8WorkdayColor(seg);
+          segments.forEach((seg,segIndex)=>{
+            const segH=ch*Math.min(1,Math.max(0,seg.value)/maxP);
+            ctx.fillStyle=phase8WorkdayColor(segIndex);
             ctx.fillRect(cx-groupW/2,bottom-segH,groupW,segH);
             bottom-=segH;
-          }
+          });
         }else{
           const pH=ch*Math.min(1,pVals[i]/maxP);
           ctx.fillStyle='#0f4c5c';
