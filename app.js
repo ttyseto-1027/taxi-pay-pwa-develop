@@ -300,18 +300,34 @@ function drawPhase8Chart(rows){
   const ctx=canvas.getContext('2d'),dpr=window.devicePixelRatio||1,w=Math.max(320,canvas.parentElement.clientWidth||900),h=360;
   canvas.style.width=w+'px';canvas.style.height=h+'px';canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
   if(!rows.length){empty.hidden=false;return;}empty.hidden=true;
-  const primary=$('phase8Primary').value,secondary=!$('phase8SecondaryWrap').hidden?$('phase8Secondary').value:null;
+  const primary=$('phase8Primary').value,secondary=!$('phase8SecondaryWrap').hidden?$('phase8Secondary').value:null,chartType=$('phase8ChartType')?.value||'line';
   const pVals=rows.map(r=>PHASE8_METRICS[primary].value(r)),sVals=secondary?rows.map(r=>PHASE8_METRICS[secondary].value(r)):[];
   const pad={l:58,r:secondary?58:18,t:24,b:54},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
   const maxP=Math.max(1,...pVals)*1.08,maxS=secondary?Math.max(1,...sVals)*1.08:1;
-  ctx.font='12px sans-serif';ctx.strokeStyle='rgba(127,127,127,.35)';ctx.fillStyle='currentColor';ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillText(phase8AxisNumber(maxP*(1-i/4),primary),4,y+4);if(secondary){const txt=phase8AxisNumber(maxS*(1-i/4),secondary);ctx.fillText(txt,w-pad.r+5,y+4);}}
+  ctx.font='12px sans-serif';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pad.t+ch*i/4;ctx.strokeStyle='rgba(127,127,127,.35)';ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.textAlign='left';ctx.fillStyle='#17212b';ctx.fillText(phase8AxisNumber(maxP*(1-i/4),primary),4,y+4);if(secondary){ctx.fillStyle='#a52a2a';ctx.fillText(phase8AxisNumber(maxS*(1-i/4),secondary),w-pad.r+5,y+4);}}
   const x=i=>rows.length===1?pad.l+cw/2:pad.l+cw*i/(rows.length-1), yP=v=>pad.t+ch-(v/maxP)*ch,yS=v=>pad.t+ch-(v/maxS)*ch;
-  function line(vals,yFn,dash){ctx.save();ctx.lineWidth=2.5;ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#2563eb';if(dash)ctx.setLineDash([7,5]);ctx.beginPath();vals.forEach((v,i)=>i?ctx.lineTo(x(i),yFn(v)):ctx.moveTo(x(i),yFn(v)));ctx.stroke();ctx.restore();}
-  line(pVals,yP,false);if(secondary)line(sVals,yS,true);
-  rows.forEach((r,i)=>{ctx.fillStyle='currentColor';ctx.textAlign='center';ctx.fillText(r.month.slice(2).replace('-','/'),x(i),h-26);if(r.inProgress){ctx.font='10px sans-serif';ctx.fillText('進行中',x(i),h-10);ctx.font='12px sans-serif';}});
-  ctx.textAlign='left';$('phase8Legend').textContent=`第1軸：${PHASE8_METRICS[primary].label}${secondary?`　／　第2軸：${PHASE8_METRICS[secondary].label}（破線）`:''}`;
+  if(chartType==='line'){
+    const line=(vals,yFn,color)=>{ctx.save();ctx.lineWidth=2.5;ctx.strokeStyle=color;ctx.beginPath();vals.forEach((v,i)=>i?ctx.lineTo(x(i),yFn(v)):ctx.moveTo(x(i),yFn(v)));ctx.stroke();ctx.restore();};
+    line(pVals,yP,'#0f4c5c');if(secondary)line(sVals,yS,'#c94a4a');
+  }else{
+    const slots=Math.max(rows.length,1),groupW=Math.max(18,Math.min(72,cw/slots*.72)),barW=secondary&&chartType==='bar'?groupW/2.2:groupW;
+    rows.forEach((r,i)=>{
+      const cx=rows.length===1?pad.l+cw/2:pad.l+cw*(i+.5)/rows.length;
+      if(chartType==='bar'){
+        const pH=ch*Math.min(1,pVals[i]/maxP);ctx.fillStyle='#0f4c5c';ctx.fillRect(cx-(secondary?barW:barW/2),pad.t+ch-pH,barW,pH);
+        if(secondary){const sH=ch*Math.min(1,sVals[i]/maxS);ctx.fillStyle='#c94a4a';ctx.fillRect(cx+2,pad.t+ch-sH,barW,sH);}
+      }else{
+        const denom=Math.max(1,(pVals[i]/maxP)+(secondary?sVals[i]/maxS:0)),pShare=(pVals[i]/maxP)/denom,sShare=secondary?(sVals[i]/maxS)/denom:0,totalH=ch*.9;
+        let y=pad.t+ch;const pH=totalH*pShare;ctx.fillStyle='#0f4c5c';ctx.fillRect(cx-barW/2,y-pH,barW,pH);y-=pH;
+        if(secondary){const sH=totalH*sShare;ctx.fillStyle='#c94a4a';ctx.fillRect(cx-barW/2,y-sH,barW,sH);}
+      }
+    });
+  }
+  rows.forEach((r,i)=>{const cx=chartType==='line'?x(i):(rows.length===1?pad.l+cw/2:pad.l+cw*(i+.5)/rows.length);ctx.fillStyle='#17212b';ctx.textAlign='center';ctx.fillText(r.month.slice(2).replace('-','/'),cx,h-26);if(r.inProgress){ctx.font='10px sans-serif';ctx.fillText('進行中',cx,h-10);ctx.font='12px sans-serif';}});
+  ctx.textAlign='left';$('phase8Legend').textContent=`第1軸：${PHASE8_METRICS[primary].label}${secondary?`　／　第2軸：${PHASE8_METRICS[secondary].label}（赤系）`:''}`;
 }
+
 function phase8AxisNumber(v,key){if(key==='effectiveReturn'||key==='takeHomeReturn')return `${Math.round(v)}%`;if(v>=10000)return `${Math.round(v/1000)}k`;return String(Math.round(v));}
 
 function populateShiftSelects(){for(const id of ['shiftType','onboardingShiftType']){const sel=$(id);sel.innerHTML='';for(const k of Object.keys(SHIFT_RULES)){const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);}}}
@@ -624,7 +640,7 @@ $('closeMonth').onclick=()=>{const entries=currentEntries();if(!entries.length)r
 phase8PopulateMetrics();
 window.phase8CustomActive=false;
 $('phase8Period')?.addEventListener('change',()=>{window.phase8CustomActive=false;$('phase8CustomPeriod').hidden=true;renderMonthlyDashboard();});
-$('phase8ToggleCustomPeriod')?.addEventListener('click',()=>{$('phase8CustomPeriod').hidden=!$('phase8CustomPeriod').hidden;});
+$('phase8ToggleCustomPeriod')?.addEventListener('click',()=>{const box=$('phase8CustomPeriod');box.hidden=!box.hidden;if(!box.hidden)window.phase8CustomActive=false;});
 $('phase8ApplyCustomPeriod')?.addEventListener('click',()=>{
   const s=$('phase8StartDate').value,e=$('phase8EndDate').value;
   if(!s||!e)return alert('開始日と終了日を指定してください。');
@@ -633,6 +649,7 @@ $('phase8ApplyCustomPeriod')?.addEventListener('click',()=>{
   renderMonthlyDashboard();
 });
 $('phase8CancelCustomPeriod')?.addEventListener('click',()=>{window.phase8CustomActive=false;$('phase8CustomPeriod').hidden=true;renderMonthlyDashboard();});
+$('phase8ChartType')?.addEventListener('change',renderMonthlyDashboard);
 $('phase8Primary')?.addEventListener('change',renderMonthlyDashboard);
 $('phase8Secondary')?.addEventListener('change',renderMonthlyDashboard);
 $('phase8AddSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=false;$('phase8RemoveSecondary').hidden=false;$('phase8AddSecondary').hidden=true;renderMonthlyDashboard();});

@@ -8,7 +8,7 @@
 <meta content="タクシー乗務員向け給与概算シミュレーター" name="description"/>
 <title>DEVELOP_タクシー給与シミュレーター</title>
 <link href="manifest.json" rel="manifest"/>
-<link href="styles.css?v=20260824-12" rel="stylesheet"/>
+<link href="styles.css?v=20260824-17" rel="stylesheet"/>
 <script>
 (function(){
   'use strict';
@@ -116,15 +116,13 @@
 </div><input id="clockOut" type="hidden"/></label>
 <label>休日区分<select id="holidayType"><option value="normal">通常勤務</option><option value="statutory">法定休日出勤</option><option value="nonstatutory">法定外休日出勤</option></select></label>
 <fieldset><legend>通常休憩</legend>
-<div aria-label="通常休憩時間" class="break-picker tap-duration-group" data-duration-prefix="normalBreak">
-<label><span>時間</span><button class="tap-number-field" data-tap-target="normalBreakHours" type="button"><span id="normalBreakHours">0</span></button><span>時間</span></label>
-<label><span>分</span><button class="tap-number-field" data-tap-target="normalBreakMinutes" type="button"><span id="normalBreakMinutes">00</span></button><span>分</span></label>
+<div aria-label="通常休憩時間" class="break-single-row" data-duration-prefix="normalBreak">
+<button class="break-single-field" data-break-target="normalBreak" type="button"><span id="normalBreakDisplay">0時間00分</span></button>
 </div>
 </fieldset>
 <fieldset><legend>深夜休憩（22:00〜翌5:00内）</legend>
-<div aria-label="深夜休憩時間" class="break-picker tap-duration-group" data-duration-prefix="nightBreak">
-<label><span>時間</span><button class="tap-number-field" data-tap-target="nightBreakHours" type="button"><span id="nightBreakHours">0</span></button><span>時間</span></label>
-<label><span>分</span><button class="tap-number-field" data-tap-target="nightBreakMinutes" type="button"><span id="nightBreakMinutes">00</span></button><span>分</span></label>
+<div aria-label="深夜休憩時間" class="break-single-row" data-duration-prefix="nightBreak">
+<button class="break-single-field" data-break-target="nightBreak" type="button"><span id="nightBreakDisplay">0時間00分</span></button>
 </div>
 </fieldset>
 <label class="check-label"><input id="hadAccident" type="checkbox"/>この乗務で事故あり</label>
@@ -165,7 +163,7 @@
 </div></details></section><section class="app-view" data-member-panel="true" data-view-panel="monthly" hidden=""><div class="view-heading"><h2>月次集計</h2><p>月全体の実績と締め履歴を確認する組合員専用画面です。</p></div><section class="card"><h2>月間集計</h2><div class="summary-grid"><div><span>税込営収合計</span><strong id="monthlyGross">—</strong></div><div><span>総労働時間</span><strong id="monthlyWorkHours">—</strong></div><div><span>総休憩時間</span><strong id="monthlyBreakHours">—</strong></div><div><span>1乗務平均営収</span><strong id="monthlyAvgGross">—</strong></div><div><span>時間あたり営収</span><strong id="monthlyGrossPerHour">—</strong></div><div><span>概算手取り</span><strong id="monthlyTakeHome">—</strong></div></div><p class="note" id="monthlyProgressNote"></p></section>
 <section class="card phase8-dashboard"><div class="phase8-title-row"><div><h2>推移グラフ</h2><p class="note">期間と指標を選んで月ごとの推移を確認できます。当月は「進行中」として表示します。</p></div></div>
 <div class="phase8-controls"><label>表示期間<select id="phase8Period"><option value="current">当月</option><option value="3">3か月</option><option value="6">6か月</option><option value="12" selected>12か月</option><option value="all">全期間</option></select></label>
-<button class="ghost" id="phase8ToggleCustomPeriod" type="button">期間指定</button><label>第1軸<select id="phase8Primary"></select></label><button class="ghost" id="phase8AddSecondary" type="button">＋ 第2軸を追加表示</button><label id="phase8SecondaryWrap" hidden>第2軸<select id="phase8Secondary"></select></label><button class="ghost" id="phase8RemoveSecondary" type="button" hidden>第2軸を非表示</button></div>
+<button class="ghost" id="phase8ToggleCustomPeriod" type="button">期間指定</button><label>グラフ形式<select id="phase8ChartType"><option value="line" selected>折れ線</option><option value="bar">棒グラフ</option><option value="stacked">積み上げ棒</option></select></label><label>第1軸<select id="phase8Primary"></select></label><button class="ghost" id="phase8AddSecondary" type="button">＋ 第2軸を追加表示</button><label id="phase8SecondaryWrap" hidden>第2軸<select id="phase8Secondary"></select></label><button class="ghost" id="phase8RemoveSecondary" type="button" hidden>第2軸を非表示</button></div>
 <div class="phase8-custom-period" id="phase8CustomPeriod" hidden>
 <label>開始日<input id="phase8StartDate" type="date"/></label>
 <label>終了日<input id="phase8EndDate" type="date"/></label>
@@ -232,6 +230,7 @@
 <label>運賃改定係数<input id="fareRevisionCoefficient" step="0.0001" type="number"/></label><label>給与算定係数<input id="payRevenueCoefficient" step="0.0001" type="number"/></label><label>消費税率（%）<input id="taxRate" step="0.1" type="number"/></label>
 <label>模範勤務手当/月<input id="modelWorkAllowance" type="number"/></label><label>無事故手当/乗務<input id="accidentFreeAllowance" type="number"/></label><label>無違反手当/乗務<input id="violationFreeAllowance" type="number"/></label>
 <label>法定超 時間外割増（%）<input id="statutoryOvertimeRate" step="0.01" type="number"/></label><label>所定超 時間外割増（%）<input id="scheduledOvertimeRate" step="0.01" type="number"/></label><label>月60時間超 割増（%）<input id="over60Rate" step="0.01" type="number"/></label><label>法定休日割増（%）<input id="statutoryHolidayRate" step="0.01" type="number"/></label><label>法定外休日割増（%）<input id="nonStatutoryHolidayRate" step="0.01" type="number"/></label><label>深夜割増（%）<input id="nightRate" step="0.01" type="number"/></label></div><div class="actions"><button id="saveAdmin">開発者設定を保存</button></div></form></dialog>
+
 <dialog id="tapNumberDialog" class="tap-number-dialog">
 <div class="tap-number-display" id="tapNumberDisplay">0</div>
 <div class="tap-number-pad">
@@ -240,6 +239,9 @@
 <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
 <button class="ghost" type="button" data-key="clear">クリア</button><button type="button" data-key="0">0</button><button class="ghost" type="button" data-key="back">←</button>
 </div>
-<div class="actions"><button class="ghost" type="button" id="tapNumberCancel">取消</button><button type="button" id="tapNumberOk">確定</button></div>
+<div class="tap-break-units" id="tapBreakUnits" hidden>
+<button type="button" data-unit="hour">時間</button>
+<button type="button" data-unit="minute">分</button>
+</div>
 </dialog>
-<script src="app-meta.js?v=20260824-12"></script><script src="phase75-ops.js?v=20260824-12"></script><script src="diagnostics.js?v=20260824-12"></script><script src="firebase-config.js?v=20260824-12"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260824-12"></script><script src="v13-features.js?v=20260824-12"></script><script src="profile-diagnostics.js?v=20260824-12"></script><script src="google-drive-config.js?v=20260824-12"></script><script src="phase56-drive-backup.js?v=20260824-12"></script><script src="boot.js?v=20260824-12"></script><script src="phase1-ui.js?v=20260824-12"></script><script src="phase2-user-settings.js?v=20260824-12" type="module"></script><script src="phase3-personal-settings.js?v=20260824-12"></script><script src="phase4-payroll-adjustments.js?v=20260824-12"></script><script src="phase7-ui.js?v=20260824-12"></script></body></html>
+<script src="app-meta.js?v=20260824-17"></script><script src="phase75-ops.js?v=20260824-17"></script><script src="diagnostics.js?v=20260824-17"></script><script src="firebase-config.js?v=20260824-17"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260824-17"></script><script src="v13-features.js?v=20260824-17"></script><script src="profile-diagnostics.js?v=20260824-17"></script><script src="google-drive-config.js?v=20260824-17"></script><script src="phase56-drive-backup.js?v=20260824-17"></script><script src="boot.js?v=20260824-17"></script><script src="phase1-ui.js?v=20260824-17"></script><script src="phase2-user-settings.js?v=20260824-17" type="module"></script><script src="phase3-personal-settings.js?v=20260824-17"></script><script src="phase4-payroll-adjustments.js?v=20260824-17"></script><script src="phase7-ui.js?v=20260824-17"></script></body></html>

@@ -858,3 +858,12 @@ tr[hidden] { display: none !important; }
   .phase8-custom-period{grid-template-columns:1fr}
   .phase8-custom-period .full{grid-column:auto}
 }
+
+/* Build 20260824-15: single-field break input with 時間/分 commit buttons */
+.break-single-row{margin-top:5px}
+.break-single-field{width:100%;min-height:50px;background:#fff;color:#17212b;border:1px solid #b9c8cf;border-radius:9px;font-size:1.08rem;font-weight:800;text-align:left}
+.break-single-field:hover{filter:none;background:#f6fafb}
+.tap-break-units{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.tap-break-units button{min-height:48px;font-size:1rem}
+
+.phase8-controls select#phase8ChartType{min-width:120px}
