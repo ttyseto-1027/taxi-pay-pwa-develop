@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260825-10-stacked-consistency';
+const CACHE = 'taxi-pay-v1.4-beta-20260825-11-axis-ticks';
 
 const FILES = [
   './',
