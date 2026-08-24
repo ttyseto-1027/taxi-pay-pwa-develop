@@ -3,6 +3,21 @@
 
   const meta = window.TAXI_PAY_APP_META || {};
   const PREFIX = 'taxi-pay-';
+  const ACK_BUILD_KEY = 'taxiPayAcknowledgedBuildV1';
+  const APP_STATE_KEY = 'taxiPayPwaStateV10';
+
+  function acknowledgedBuild(){
+    return String(localStorage.getItem(ACK_BUILD_KEY) || '');
+  }
+
+  function acknowledgeBuild(build){
+    if(build) localStorage.setItem(ACK_BUILD_KEY, String(build));
+  }
+
+  function looksLikeExistingUser(){
+    // Existing app data or a controlling service worker means this is not a pristine first visit.
+    return !!localStorage.getItem(APP_STATE_KEY) || !!navigator.serviceWorker?.controller;
+  }
 
   function compareBuild(a,b){
     return String(a||'').localeCompare(String(b||''), undefined, {numeric:true, sensitivity:'base'});
@@ -149,6 +164,7 @@
     const currentBuild = String(meta.build || '');
 
     if(compareBuild(currentBuild, targetBuild) >= 0){
+      acknowledgeBuild(targetBuild);
       removeNotice();
       showSuccess(currentBuild);
 
@@ -174,14 +190,56 @@
     }
   }
 
+  function checkLoadedBuildImmediately(){
+    const currentBuild = String(meta.build || '');
+    if(!currentBuild) return false;
+
+    const ackBuild = acknowledgedBuild();
+
+    // Existing user + no acknowledged build: show once.
+    if(!ackBuild && looksLikeExistingUser()){
+      showNotice(currentBuild);
+      return true;
+    }
+
+    // Core rule: every Build change must display the update notice until
+    // the user explicitly completes the update action.
+    if(ackBuild && compareBuild(ackBuild, currentBuild) < 0){
+      showNotice(currentBuild);
+      return true;
+    }
+
+    return false;
+  }
+
   async function checkLatest(){
     try{
       const latest = await fetchLatestMeta();
       const currentBuild = String(meta.build || '');
       const latestBuild = String(latest.build || '');
+      let ackBuild = acknowledgedBuild();
 
-      if(latestBuild && compareBuild(currentBuild, latestBuild) < 0){
+      // Migration from the old update system:
+      // an existing user has no ACK key yet, so intentionally treat the current
+      // published build as "not acknowledged" and show the update notice once.
+      if(!ackBuild){
+        if(looksLikeExistingUser()){
+          showNotice(latestBuild || currentBuild);
+          return;
+        }
+        // Brand-new user: the build they first opened is already their baseline.
+        acknowledgeBuild(currentBuild || latestBuild);
+        ackBuild = acknowledgedBuild();
+      }
+
+      // IMPORTANT: compare against the build explicitly acknowledged by the user,
+      // not against app-meta.js that may already have been refreshed by the browser.
+      if(latestBuild && compareBuild(ackBuild, latestBuild) < 0){
         showNotice(latestBuild);
+      }else if(currentBuild && ackBuild && compareBuild(ackBuild, currentBuild) < 0){
+        // The current page itself is already a newer Build. Keep the notice
+        // even when the remote metadata check does not report anything newer.
+        showNotice(currentBuild);
       }else{
         removeNotice();
       }
@@ -189,6 +247,8 @@
       console.warn('最新版確認を実行できませんでした。', err);
     }
   }
+
+  checkLoadedBuildImmediately();
 
   window.TaxiPayPhase75 = {
     meta,
