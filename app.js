@@ -302,23 +302,14 @@ function phase8CurrentDailyRows(){
     .slice()
     .sort((a,b)=>a.date.localeCompare(b.date));
   if(!entries.length)return [];
-  const dates=[...new Set(entries.map(e=>e.date))].sort();
-  return dates.map(date=>{
-    const upto=entries.filter(e=>e.date<=date);
-    const t=totals(upto);
-    const actual=upto.filter(e=>leaveUnits(e)===0);
-    return {
-      month:date.slice(5).replace('-','/'),
-      date,
-      gross:t.gross,
-      grossPay:t.grossPay,
-      takeHome:t.takeHome,
-      workMinutes:t.premium.work,
-      breakMinutes:actual.reduce((s,e)=>s+Number(e.normalBreakMinutes||0)+Number(e.nightBreakMinutes||0),0),
-      count:actual.length,
-      dailyAxis:true,
-      inProgress:true
-    };
+  const groups=new Map();
+  entries.forEach(e=>{if(!groups.has(e.date))groups.set(e.date,[]);groups.get(e.date).push(e);});
+  return [...groups.entries()].map(([date,rows])=>{
+    const r=phase8EstimateForEntries(rows,date.slice(5).replace('-','/'));
+    r.date=date;
+    r.dailyAxis=true;
+    r.inProgress=true;
+    return r;
   });
 }
 function phase8CustomRows(){
