@@ -243,13 +243,20 @@ function phase8PopulateMetrics(){
   if(!a.options.length)for(const [k,m] of Object.entries(PHASE8_METRICS)){a.add(new Option(m.label,k));b.add(new Option(m.label,k));}
   if(!a.value)a.value='gross';if(!b.value)b.value='takeHome';
 }
+function phase8MetricIsAdditive(key){
+  return ['gross','grossPay','takeHome'].includes(key);
+}
 function phase8SyncChartTypeAvailability(){
   const sel=$('phase8ChartType'); if(!sel)return;
   const period=$('phase8Period')?.value||'current';
   const dailyMode=window.phase8CustomActive||period==='current';
+  const secondaryVisible=!!$('phase8SecondaryWrap') && !$('phase8SecondaryWrap').hidden;
+  const primary=$('phase8Primary')?.value||'gross';
   const stacked=[...sel.options].find(o=>o.value==='stacked');
-  if(stacked)stacked.disabled=dailyMode;
-  if(dailyMode&&sel.value==='stacked')sel.value='bar';
+
+  const stackedAllowed=!dailyMode && !secondaryVisible && phase8MetricIsAdditive(primary);
+  if(stacked)stacked.disabled=!stackedAllowed;
+  if(!stackedAllowed && sel.value==='stacked')sel.value='bar';
 }
 function renderMonthlyDashboard(){
   phase8SyncChartTypeAvailability();
@@ -329,11 +336,21 @@ function phase8MonthlyWorkdaySegments(row,metricKey){
   if(!row?.month || row.dailyAxis)return [];
   const ym=row.month;
   const pp=payrollPeriod(ym);
-  const entries=(state.entries||[])
-    .filter(e=>e?.date && e.date>=pp.start && e.date<=pp.end)
-    .slice().sort((a,b)=>a.date.localeCompare(b.date));
+
+  const byId=new Map();
+  for(const e of (state.entries||[])){
+    if(e?.date && e.date>=pp.start && e.date<=pp.end)byId.set(e.id||`${e.date}|${Math.random()}`,e);
+  }
+  for(const h of (state.history||[])){
+    for(const e of (Array.isArray(h.dailyEntries)?h.dailyEntries:[])){
+      if(e?.date && e.date>=pp.start && e.date<=pp.end)byId.set(e.id||`${e.date}|${Math.random()}`,e);
+    }
+  }
+
+  const entries=[...byId.values()].sort((a,b)=>a.date.localeCompare(b.date));
   const groups=new Map();
   entries.forEach(e=>{if(!groups.has(e.date))groups.set(e.date,[]);groups.get(e.date).push(e);});
+
   return [...groups.entries()].map(([date,dayEntries])=>{
     const day=phase8EstimateForEntries(dayEntries,date.slice(5).replace('-','/'));
     return {date,value:PHASE8_METRICS[metricKey].value(day)};
@@ -367,7 +384,7 @@ function drawPhase8Chart(rows){
     maxP=Math.max(1,...pVals.map((v,i)=>v+sVals[i]))*1.08;
     maxS=maxP;
   }
-  if(chartType==='stacked' && !secondary && rows.every(r=>!r.dailyAxis)){
+  if(chartType==='stacked' && !secondary && phase8MetricIsAdditive(primary) && rows.every(r=>!r.dailyAxis)){
     const stackedTotals=rows.map(r=>phase8MonthlyWorkdaySegments(r,primary).reduce((s,x)=>s+x.value,0));
     if(stackedTotals.length)maxP=pMoney?Math.max(moneyStep,Math.ceil(Math.max(1,...stackedTotals)/moneyStep)*moneyStep):Math.max(1,...stackedTotals)*1.08;
   }
@@ -424,7 +441,7 @@ function drawPhase8Chart(rows){
           ctx.fillRect(cx+2,pad.t+ch-sH,sideBarW,sH);
         }
       }else if(chartType==='stacked'){
-        if(!secondary && rows.every(r=>!r.dailyAxis)){
+        if(!secondary && phase8MetricIsAdditive(primary) && rows.every(r=>!r.dailyAxis)){
           const segments=phase8MonthlyWorkdaySegments(r,primary);
           let bottom=pad.t+ch;
           segments.forEach((seg,segIndex)=>{
@@ -791,10 +808,10 @@ $('phase8ApplyCustomPeriod')?.addEventListener('click',()=>{
 });
 $('phase8CancelCustomPeriod')?.addEventListener('click',()=>{window.phase8CustomActive=false;$('phase8CustomPeriod').hidden=true;renderMonthlyDashboard();});
 $('phase8ChartType')?.addEventListener('change',renderMonthlyDashboard);
-$('phase8Primary')?.addEventListener('change',renderMonthlyDashboard);
+$('phase8Primary')?.addEventListener('change',()=>{phase8SyncChartTypeAvailability();renderMonthlyDashboard();});
 $('phase8Secondary')?.addEventListener('change',renderMonthlyDashboard);
-$('phase8AddSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=false;$('phase8RemoveSecondary').hidden=false;$('phase8AddSecondary').hidden=true;renderMonthlyDashboard();});
-$('phase8RemoveSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=true;$('phase8RemoveSecondary').hidden=true;$('phase8AddSecondary').hidden=false;renderMonthlyDashboard();});
+$('phase8AddSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=false;$('phase8RemoveSecondary').hidden=false;$('phase8AddSecondary').hidden=true;phase8SyncChartTypeAvailability();renderMonthlyDashboard();});
+$('phase8RemoveSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=true;$('phase8RemoveSecondary').hidden=true;$('phase8AddSecondary').hidden=false;phase8SyncChartTypeAvailability();renderMonthlyDashboard();});
 window.addEventListener('resize',()=>{if(!$('phase8Chart')?.closest('[hidden]'))drawPhase8Chart((()=>{let r=phase8Rows(),p=$('phase8Period')?.value||'12';return window.phase8CustomActive?phase8CustomRows():p==='all'?r:p==='current'?phase8CurrentDailyRows():r.slice(-Number(p));})());});
 $('openSettings').onclick=()=>{loadSettingsForm();$('settingsDialog').showModal();};$('shiftType').onchange=()=>{$('shiftRuleInfo').innerHTML=ruleDescription($('shiftType').value);const r=SHIFT_RULES[$('shiftType').value];$('standardShiftHoursDisplay').value=minutesText(r.shiftMinutes);$('standardHoursDisplay').value=minutesText(r.monthlyMinutes);};$('saveSettings').onclick=e=>{e.preventDefault();saveSettingsForm();$('settingsDialog').close();};
 $('openAdmin').onclick=()=>{const p=prompt('開発者パスワードを入力してください。');if(p!==ADMIN_PASSWORD)return alert('パスワードが違います。');loadAdminForm();$('adminDialog').showModal();};$('saveAdmin').onclick=e=>{e.preventDefault();saveAdminForm();$('adminDialog').close();alert('開発者設定を保存しました。');};

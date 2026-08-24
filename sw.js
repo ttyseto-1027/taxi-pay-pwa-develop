@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260825-09-monthly-stacked-workdays';
+const CACHE = 'taxi-pay-v1.4-beta-20260825-10-stacked-consistency';
 
 const FILES = [
   './',
