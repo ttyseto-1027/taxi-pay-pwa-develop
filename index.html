@@ -8,7 +8,7 @@
 <meta content="タクシー乗務員向け給与概算シミュレーター" name="description"/>
 <title>DEVELOP_タクシー給与シミュレーター</title>
 <link href="manifest.json" rel="manifest"/>
-<link href="styles.css?v=20260825-01" rel="stylesheet"/>
+<link href="styles.css?v=20260825-03" rel="stylesheet"/>
 <script>
 (function(){
   'use strict';
@@ -106,13 +106,13 @@
 </div>
 <label>出勤時刻（アルコール）
 <div class="tap-time-row" data-clock-group="clockIn">
-<button class="tap-number-field" data-tap-target="clockInHour" type="button"><span id="clockInHour">--</span></button><span>：</span>
-<button class="tap-number-field" data-tap-target="clockInMinute" type="button"><span id="clockInMinute">--</span></button>
+<button class="tap-number-field" data-tap-target="clockInHour" type="button"><span id="clockInHour">--</span></button><span class="clock-unit">時</span>
+<button class="tap-number-field" data-tap-target="clockInMinute" type="button"><span id="clockInMinute">--</span></button><span class="clock-unit">分</span>
 </div><input id="clockIn" type="hidden"/></label>
 <label>退勤時刻（アルコール）
 <div class="tap-time-row" data-clock-group="clockOut">
-<button class="tap-number-field" data-tap-target="clockOutHour" type="button"><span id="clockOutHour">--</span></button><span>：</span>
-<button class="tap-number-field" data-tap-target="clockOutMinute" type="button"><span id="clockOutMinute">--</span></button>
+<button class="tap-number-field" data-tap-target="clockOutHour" type="button"><span id="clockOutHour">--</span></button><span class="clock-unit">時</span>
+<button class="tap-number-field" data-tap-target="clockOutMinute" type="button"><span id="clockOutMinute">--</span></button><span class="clock-unit">分</span>
 </div><input id="clockOut" type="hidden"/></label>
 <label>休日区分<select id="holidayType"><option value="normal">通常勤務</option><option value="statutory">法定休日出勤</option><option value="nonstatutory">法定外休日出勤</option></select></label>
 <fieldset><legend>通常休憩</legend>
@@ -247,4 +247,4 @@
 <button type="button" data-unit="minute">分</button>
 </div>
 </dialog>
-<script src="app-meta.js?v=20260825-01"></script><script src="phase75-ops.js?v=20260825-01"></script><script src="diagnostics.js?v=20260825-01"></script><script src="firebase-config.js?v=20260825-01"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260825-01"></script><script src="v13-features.js?v=20260825-01"></script><script src="profile-diagnostics.js?v=20260825-01"></script><script src="google-drive-config.js?v=20260825-01"></script><script src="phase56-drive-backup.js?v=20260825-01"></script><script src="boot.js?v=20260825-01"></script><script src="phase1-ui.js?v=20260825-01"></script><script src="phase2-user-settings.js?v=20260825-01" type="module"></script><script src="phase3-personal-settings.js?v=20260825-01"></script><script src="phase4-payroll-adjustments.js?v=20260825-01"></script><script src="phase7-ui.js?v=20260825-01"></script></body></html>
+<script src="app-meta.js?v=20260825-03"></script><script src="phase75-ops.js?v=20260825-03"></script><script src="diagnostics.js?v=20260825-03"></script><script src="firebase-config.js?v=20260825-03"></script><script src="tax-table-2026.js"></script><script src="app.js?v=20260825-03"></script><script src="v13-features.js?v=20260825-03"></script><script src="profile-diagnostics.js?v=20260825-03"></script><script src="google-drive-config.js?v=20260825-03"></script><script src="phase56-drive-backup.js?v=20260825-03"></script><script src="boot.js?v=20260825-03"></script><script src="phase1-ui.js?v=20260825-03"></script><script src="phase2-user-settings.js?v=20260825-03" type="module"></script><script src="phase3-personal-settings.js?v=20260825-03"></script><script src="phase4-payroll-adjustments.js?v=20260825-03"></script><script src="phase7-ui.js?v=20260825-03"></script></body></html>

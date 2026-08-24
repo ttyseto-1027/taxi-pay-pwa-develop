@@ -416,7 +416,7 @@ function openTapNumber(targetId){
   // 入力枠の既存値は、ユーザーが新しい数字を押すまではそのまま保持する。
   tapNumberBuffer='';
   $('tapNumberDisplay').textContent='';
-  $('tapBreakUnits').hidden=true;
+  if($('tapBreakUnits'))$('tapBreakUnits').hidden=true;
   $('tapNumberDialog').showModal();
 }
 function openBreakNumber(prefix){
