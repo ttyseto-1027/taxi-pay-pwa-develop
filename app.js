@@ -66,11 +66,12 @@ function paidLeaveShiftCredit(e){const n=leaveUnits(e);return n?(isKakuShift()?n
 function addOneYearISO(s){if(!s)return '';const [y,m,d]=s.split('-').map(Number),x=new Date(y+1,m-1,d);return fmtDate(x);}
 function applyDuePaidLeaveGrant(){const st=state.settings,date=st.paidLeaveNextGrantDate,days=Number(st.paidLeaveNextGrantDays||0);if(!date||days<=0||date>today())return false;st.paidLeaveAppliedGrants=Array.isArray(st.paidLeaveAppliedGrants)?st.paidLeaveAppliedGrants:[];if(!st.paidLeaveAppliedGrants.some(x=>x.date===date))st.paidLeaveAppliedGrants.push({date,days,appliedAt:new Date().toISOString()});st.paidLeaveNextGrantDate=addOneYearISO(date);saveState();return true;}
 function paidLeaveBalance(excludeId=''){const st=state.settings,grants=(st.paidLeaveAppliedGrants||[]).reduce((a,x)=>a+Number(x.days||0),0),closed=(st.paidLeaveUsageHistory||[]).reduce((a,x)=>a+Number(x.days||0),0),open=(state.entries||[]).filter(e=>e.id!==excludeId).reduce((a,e)=>a+leaveUnits(e),0);return Math.max(0,Number(st.paidLeaveOpeningBalance||0)+grants-closed-open);}
-function setPaidLeaveMode(){const n=Number(document.querySelector('input[name="paidLeaveType"]:checked')?.value||0),leave=n>0;for(const id of ['grossRevenue','otherPlus','otherMinus','idleA','idleB','clockIn','clockOut','holidayType','normalBreakHours','normalBreakMinutes','nightBreakHours','nightBreakMinutes','hadAccident','hadViolation']){const el=$(id);if(!el)continue;el.disabled=leave;if(leave){if(el.type==='checkbox')el.checked=false;else if(el.tagName==='SELECT')el.selectedIndex=0;
+function setPaidLeaveMode(){const n=Number(document.querySelector('input[name="paidLeaveType"]:checked')?.value||0),leave=n>0;for(const id of ['grossRevenue','otherPlus','otherMinus','idleA','idleB','clockIn','clockOut','holidayType','hadAccident','hadViolation']){const el=$(id);if(!el)continue;el.disabled=leave;if(leave){if(el.type==='checkbox')el.checked=false;else if(el.tagName==='SELECT')el.selectedIndex=0;
 else if(el.tagName==='BUTTON'){
   const span=el.querySelector('span');
   if(span)span.textContent=el.id.toLowerCase().includes('minutes')?'00':'0';
-}else el.value='';}}if($('adjustedGrossRevenue'))$('adjustedGrossRevenue').value='';$('netRevenue').value='';const editingId=$('editingId').value||'';$('paidLeaveEntryNote').textContent=leave?`${leaveLabel(n)}を使用します。保存後の残数：${Math.max(0,paidLeaveBalance(editingId)-n)}日`:`通常勤務です。有給残数：${paidLeaveBalance(editingId)}日`;}
+}else el.value='';}}document.querySelectorAll('[data-break-target]').forEach(btn=>{btn.disabled=leave;if(leave)setBreak(btn.dataset.breakTarget,0);});
+if($('adjustedGrossRevenue'))$('adjustedGrossRevenue').value='';$('netRevenue').value='';const editingId=$('editingId').value||'';$('paidLeaveEntryNote').textContent=leave?`${leaveLabel(n)}を使用します。保存後の残数：${Math.max(0,paidLeaveBalance(editingId)-n)}日`:`通常勤務です。有給残数：${paidLeaveBalance(editingId)}日`;}
 function renderPaidLeaveHistory(){const box=$('paidLeaveHistoryList');if(!box)return;const grants=(state.settings.paidLeaveAppliedGrants||[]).map(x=>({date:x.date,text:`${x.days}日付与`})),uses=(state.settings.paidLeaveUsageHistory||[]).map(x=>({date:x.periodEnd||x.closedAt?.slice(0,10)||'',text:`${x.days}日使用（${x.month}給与）`})),rows=[...grants,...uses].sort((a,b)=>b.date.localeCompare(a.date));box.innerHTML=rows.length?'<strong>付与・使用履歴</strong>'+rows.map(x=>`<div>${x.date}　${x.text}</div>`).join(''):'<span class="note">付与・使用履歴はまだありません。</span>';}
 
 function parseDate(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
@@ -339,8 +340,9 @@ function saveAdminForm(){for(const k of ADMIN_FIELDS)state.settings[k]=Number($(
 function breakValue(prefix){return Number($(prefix+'Hours').value||0)*60+Number($(prefix+'Minutes').value||0);}
 let tapNumberTarget='';
 let tapNumberBuffer='';
-let pendingBreakNormalize='';
-let confirmedLongBreakSignature='';
+let tapInputMode='clock';
+let activeBreakPrefix='';
+let breakDraftHours=null;
 
 function tapValue(id){
   const el=$(id);
@@ -353,23 +355,24 @@ function setTapValue(id,value,pad2=false){
   el.textContent=pad2?String(n).padStart(2,'0'):String(n);
 }
 function initBreakPickers(){}
+function breakDisplayText(total){
+  const minutes=Math.max(0,Math.round(Number(total||0)));
+  return `${Math.floor(minutes/60)}時間${String(minutes%60).padStart(2,'0')}分`;
+}
 function setBreak(prefix,total){
-  const minutes=Math.max(0,Number(total||0));
-  setTapValue(prefix+'Hours',Math.floor(minutes/60),false);
-  setTapValue(prefix+'Minutes',minutes%60,true);
+  const minutes=Math.max(0,Math.round(Number(total||0)));
+  const display=$(prefix+'Display');
+  if(display)display.textContent=breakDisplayText(minutes);
+  const holder=document.querySelector(`[data-duration-prefix="${prefix}"]`);
+  if(holder)holder.dataset.totalMinutes=String(minutes);
 }
 function breakValue(prefix){
-  return tapValue(prefix+'Hours')*60+tapValue(prefix+'Minutes');
+  const holder=document.querySelector(`[data-duration-prefix="${prefix}"]`);
+  return Math.max(0,Number(holder?.dataset.totalMinutes||0));
 }
-function normalizeBreak(prefix){
-  const total=breakValue(prefix);
-  setBreak(prefix,total);
-  return total;
-}
-function normalizeAllBreaks(){
-  pendingBreakNormalize='';
-  return {normal:normalizeBreak('normalBreak'),night:normalizeBreak('nightBreak')};
-}
+function normalizeBreak(prefix){const total=breakValue(prefix);setBreak(prefix,total);return total;}
+function normalizeAllBreaks(){return {normal:normalizeBreak('normalBreak'),night:normalizeBreak('nightBreak')};}
+
 function setClockParts(prefix,value){
   const parts=String(value||'').split(':');
   const valid=!!value&&parts.length===2;
@@ -390,38 +393,47 @@ function syncClock(prefix,showAlert=true){
   return true;
 }
 function openTapNumber(targetId){
-  // A different operation outside the current break group commits its normalization.
-  const group=document.querySelector(`[data-duration-prefix="${pendingBreakNormalize}"]`);
-  const nextButton=document.querySelector(`[data-tap-target="${targetId}"]`);
-  if(pendingBreakNormalize && (!group || !nextButton || !group.contains(nextButton))){
-    normalizeBreak(pendingBreakNormalize);
-    pendingBreakNormalize='';
-    checkLongBreakWarning(false);
-  }
+  tapInputMode='clock';
+  activeBreakPrefix='';
   tapNumberTarget=targetId;
-  const current=$(targetId)?.textContent||'0';
-  tapNumberBuffer=current==='--'?'':String(Number(current)||0);
-  $('tapNumberDisplay').textContent=tapNumberBuffer||'0';
+  // 修正時も前回値を数字パネルへ引き継がない。
+  // 入力枠の既存値は、ユーザーが新しい数字を押すまではそのまま保持する。
+  tapNumberBuffer='';
+  $('tapNumberDisplay').textContent='';
+  $('tapBreakUnits').hidden=true;
   $('tapNumberDialog').showModal();
 }
-function closeTapNumber(commit){
-  if(commit&&tapNumberTarget){
-    const value=Math.max(0,Number(tapNumberBuffer||0));
-    const minuteField=tapNumberTarget.toLowerCase().includes('minute');
-    setTapValue(tapNumberTarget,value,minuteField);
-    if(tapNumberTarget.startsWith('normalBreak'))pendingBreakNormalize='normalBreak';
-    if(tapNumberTarget.startsWith('nightBreak'))pendingBreakNormalize='nightBreak';
-    if(tapNumberTarget.startsWith('clockIn'))syncClock('clockIn',false);
-    if(tapNumberTarget.startsWith('clockOut'))syncClock('clockOut',false);
-    confirmedLongBreakSignature='';
-  }
+function openBreakNumber(prefix){
+  tapInputMode='break';
+  activeBreakPrefix=prefix;
   tapNumberTarget='';
   tapNumberBuffer='';
+  breakDraftHours=null;
+  // 休憩時間を上書きするときも、数字パネルは常に空欄から開始する。
+  $('tapNumberDisplay').textContent='';
+  $('tapBreakUnits').hidden=false;
+  $('tapNumberDialog').showModal();
+}
+function applyClockBuffer(){
+  if(!tapNumberTarget)return;
+  const value=Math.max(0,Number(tapNumberBuffer||0));
+  const minuteField=tapNumberTarget.toLowerCase().includes('minute');
+  setTapValue(tapNumberTarget,value,minuteField);
+  if(tapNumberTarget.startsWith('clockIn'))syncClock('clockIn',false);
+  if(tapNumberTarget.startsWith('clockOut'))syncClock('clockOut',false);
+}
+function closeTapNumber(){
+  tapNumberTarget='';
+  tapNumberBuffer='';
+  tapInputMode='clock';
+  activeBreakPrefix='';
+  breakDraftHours=null;
   $('tapNumberDialog').close();
 }
 function longBreakSignature(){
   return `${$('clockIn')?.value||''}|${$('clockOut')?.value||''}|${breakValue('normalBreak')}|${breakValue('nightBreak')}`;
 }
+let confirmedLongBreakSignature='';
 function checkLongBreakWarning(force){
   if(!syncClock('clockIn',false)||!syncClock('clockOut',false))return true;
   const start=timeToMinutes($('clockIn').value),out=timeToMinutes($('clockOut').value);
@@ -472,33 +484,54 @@ for(const id of ['grossRevenue','otherPlus','otherMinus','idleA','idleB']){
   });
 }document.querySelectorAll('input[name="paidLeaveType"]').forEach(x=>x.addEventListener('change',setPaidLeaveMode));
 document.querySelectorAll('.tap-number-field').forEach(btn=>btn.addEventListener('click',()=>openTapNumber(btn.dataset.tapTarget)));
+document.querySelectorAll('[data-break-target]').forEach(btn=>btn.addEventListener('click',()=>openBreakNumber(btn.dataset.breakTarget)));
+
 $('tapNumberDialog')?.querySelectorAll('[data-key]').forEach(btn=>btn.addEventListener('click',()=>{
   const key=btn.dataset.key;
   if(key==='clear')tapNumberBuffer='';
   else if(key==='back')tapNumberBuffer=tapNumberBuffer.slice(0,-1);
   else if(tapNumberBuffer.length<4)tapNumberBuffer=(tapNumberBuffer==='0'?'':tapNumberBuffer)+key;
-  $('tapNumberDisplay').textContent=tapNumberBuffer||'0';
+
+  $('tapNumberDisplay').textContent=tapNumberBuffer;
+
+  // 出退勤時刻は従来どおり数字を押すたび即時反映。
+  if(tapInputMode==='clock')applyClockBuffer();
 }));
-$('tapNumberOk')?.addEventListener('click',()=>closeTapNumber(true));
-$('tapNumberCancel')?.addEventListener('click',()=>closeTapNumber(false));
+
+$('tapBreakUnits')?.querySelectorAll('[data-unit]').forEach(btn=>btn.addEventListener('click',()=>{
+  if(tapInputMode!=='break'||!activeBreakPrefix)return;
+  const unit=btn.dataset.unit;
+  const value=Math.max(0,Number(tapNumberBuffer||0));
+
+  if(unit==='hour'){
+    // 「2」→「時間」で2時間を確定。分は未入力のままなので00分扱い。
+    breakDraftHours=value;
+    setBreak(activeBreakPrefix,value*60);
+    tapNumberBuffer='';
+    $('tapNumberDisplay').textContent='0';
+    confirmedLongBreakSignature='';
+    return;
+  }
+
+  if(unit==='minute'){
+    // 時間ボタンを押していない場合は、現在表示中の時間をそのまま基準にする。
+    // 2時間ちょうどなら「2→時間→分」で00分。
+    const hours=breakDraftHours===null?0:breakDraftHours;
+    const total=hours*60+value; // 78分なら自動的に1時間18分へ正規化
+    setBreak(activeBreakPrefix,total);
+    confirmedLongBreakSignature='';
+    closeTapNumber();
+    checkLongBreakWarning(false);
+  }
+}));
+
 $('tapNumberDialog')?.addEventListener('click',ev=>{
-  if(ev.target===$('tapNumberDialog'))closeTapNumber(false);
+  if(ev.target===$('tapNumberDialog'))closeTapNumber();
 });
 $('tapNumberDialog')?.addEventListener('cancel',ev=>{
   ev.preventDefault();
-  closeTapNumber(false);
+  closeTapNumber();
 });
-
-// Normal休憩/深夜休憩のセットから別操作へ移った時に 78分→1時間18分 のように正規化。
-document.addEventListener('pointerdown',ev=>{
-  if(!pendingBreakNormalize)return;
-  const group=document.querySelector(`[data-duration-prefix="${pendingBreakNormalize}"]`);
-  if(group&&group.contains(ev.target))return;
-  if(ev.target.closest('#tapNumberDialog'))return;
-  normalizeBreak(pendingBreakNormalize);
-  pendingBreakNormalize='';
-  checkLongBreakWarning(false);
-},true);
 
 $('entryForm').addEventListener('submit',ev=>{
   ev.preventDefault();

@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260824-13-phase8-period-tap-input';
+const CACHE = 'taxi-pay-v1.4-beta-20260824-16-blank-keypad';
 
 const FILES = [
   './',

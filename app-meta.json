@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260824-13",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260824-13-phase8-period-tap-input",
-  "releasedAtJst": "2026/08/24 22:44:28 JST",
+  "build": "20260824-16",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260824-16-blank-keypad",
+  "releasedAtJst": "2026/08/24 23:27:39 JST",
   "environment": "DEVELOP"
 }
