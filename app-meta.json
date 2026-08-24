@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260825-03",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260825-03-clock-ui",
-  "releasedAtJst": "2026/08/25 00:40:19 JST",
+  "build": "20260825-05",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260825-05-chart-daily-stack-fix",
+  "releasedAtJst": "2026/08/25 00:55:52 JST",
   "environment": "DEVELOP"
 }

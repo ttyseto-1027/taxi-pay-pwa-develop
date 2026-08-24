@@ -906,3 +906,10 @@ tr[hidden] { display: none !important; }
   .phase8-axis-row{display:grid;grid-template-columns:1fr}
   .phase8-axis-row button{width:100%}
 }
+
+/* Build 20260825-04: hidden state must win over .tap-break-units display:grid */
+#tapBreakUnits[hidden]{display:none!important}
+
+/* Build 20260825-05: Phase8 secondary-axis hidden state */
+#phase8SecondaryWrap[hidden],
+#phase8RemoveSecondary[hidden]{display:none!important}

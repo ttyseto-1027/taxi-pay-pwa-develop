@@ -255,11 +255,13 @@ function renderMonthlyDashboard(){
   $('monthlyTakeHome').textContent=yen(current.takeHome);
   $('monthlyProgressNote').textContent=`${current.month.replace('-','年')}月は進行中のデータです。`;
   let rows=phase8Rows(),period=$('phase8Period')?.value||'12';
-  if(window.phase8CustomActive) rows=phase8CustomRows();
-  else if(period==='current') rows=rows.slice(-1);
+  let dailyAxis=false;
+  if(window.phase8CustomActive){ rows=phase8CustomRows(); dailyAxis=true; }
+  else if(period==='current'){ rows=phase8CurrentDailyRows(); dailyAxis=true; }
   else if(period!=='all') rows=rows.slice(-Number(period));
+  if($('phase8PeriodLabel'))$('phase8PeriodLabel').textContent=dailyAxis?'日付':'月';
   const body=$('phase8TableBody');body.innerHTML='';
-  for(const r of rows){const tr=document.createElement('tr'),tag=r.inProgress?' <span class="phase8-progress">進行中</span>':'';tr.innerHTML=`<td>${r.month}${tag}</td><td>${yen(r.gross)}</td><td>${r.grossPay==null?'—':yen(r.grossPay)}</td><td>${yen(r.takeHome)}</td><td>${r.workMinutes?phase8FormatMetric('takeHomeHourly',PHASE8_METRICS.takeHomeHourly.value(r)):'—'}</td><td>${r.grossPay==null?'—':phase8FormatMetric('effectiveReturn',PHASE8_METRICS.effectiveReturn.value(r))}</td><td>${phase8FormatMetric('takeHomeReturn',PHASE8_METRICS.takeHomeReturn.value(r))}</td>`;body.appendChild(tr);}
+  for(const r of rows){const tr=document.createElement('tr'),tag=(!r.dailyAxis&&r.inProgress)?' <span class="phase8-progress">進行中</span>':'';tr.innerHTML=`<td>${r.month}${tag}</td><td>${yen(r.gross)}</td><td>${r.grossPay==null?'—':yen(r.grossPay)}</td><td>${yen(r.takeHome)}</td><td>${r.workMinutes?phase8FormatMetric('takeHomeHourly',PHASE8_METRICS.takeHomeHourly.value(r)):'—'}</td><td>${r.grossPay==null?'—':phase8FormatMetric('effectiveReturn',PHASE8_METRICS.effectiveReturn.value(r))}</td><td>${phase8FormatMetric('takeHomeReturn',PHASE8_METRICS.takeHomeReturn.value(r))}</td>`;body.appendChild(tr);}
   drawPhase8Chart(rows);
 }
 function phase8AllDailyEntries(){
@@ -283,6 +285,33 @@ function phase8EstimateForEntries(entries,label){
   const workMinutes=actual.reduce((s,e)=>s+entryTimeInfo(e).work,0);
   return {month:label,gross,grossPay,takeHome:grossPay,workMinutes,count:actual.length,inProgress:true,custom:true};
 }
+function phase8CurrentDailyRows(){
+  const ym=$('currentMonth')?.value||payrollMonthOf(today());
+  const pp=payrollPeriod(ym);
+  const entries=(state.entries||[])
+    .filter(e=>e?.date && e.date>=pp.start && e.date<=pp.end)
+    .slice()
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  if(!entries.length)return [];
+  const dates=[...new Set(entries.map(e=>e.date))].sort();
+  return dates.map(date=>{
+    const upto=entries.filter(e=>e.date<=date);
+    const t=totals(upto);
+    const actual=upto.filter(e=>leaveUnits(e)===0);
+    return {
+      month:date.slice(5).replace('-','/'),
+      date,
+      gross:t.gross,
+      grossPay:t.grossPay,
+      takeHome:t.takeHome,
+      workMinutes:t.premium.work,
+      breakMinutes:actual.reduce((s,e)=>s+Number(e.normalBreakMinutes||0)+Number(e.nightBreakMinutes||0),0),
+      count:actual.length,
+      dailyAxis:true,
+      inProgress:true
+    };
+  });
+}
 function phase8CustomRows(){
   const start=$('phase8StartDate')?.value||'',end=$('phase8EndDate')?.value||'';
   if(!start||!end||start>end)return [];
@@ -293,41 +322,112 @@ function phase8CustomRows(){
     if(!groups.has(key))groups.set(key,[]);
     groups.get(key).push(e);
   }
-  return [...groups.entries()].map(([date,rows])=>phase8EstimateForEntries(rows,date.slice(5).replace('-','/')));
+  return [...groups.entries()].map(([date,rows])=>{const r=phase8EstimateForEntries(rows,date.slice(5).replace('-','/'));r.date=date;r.dailyAxis=true;return r;});
 }
 function drawPhase8Chart(rows){
   const canvas=$('phase8Chart'),empty=$('phase8Empty');if(!canvas)return;
   const ctx=canvas.getContext('2d'),dpr=window.devicePixelRatio||1,w=Math.max(320,canvas.parentElement.clientWidth||900),h=360;
-  canvas.style.width=w+'px';canvas.style.height=h+'px';canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  canvas.style.width=w+'px';canvas.style.height=h+'px';canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
   if(!rows.length){empty.hidden=false;return;}empty.hidden=true;
-  const primary=$('phase8Primary').value,secondary=!$('phase8SecondaryWrap').hidden?$('phase8Secondary').value:null,chartType=$('phase8ChartType')?.value||'line';
-  const pVals=rows.map(r=>PHASE8_METRICS[primary].value(r)),sVals=secondary?rows.map(r=>PHASE8_METRICS[secondary].value(r)):[];
-  const pad={l:58,r:secondary?58:18,t:24,b:54},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
-  const maxP=Math.max(1,...pVals)*1.08,maxS=secondary?Math.max(1,...sVals)*1.08:1;
+
+  const primary=$('phase8Primary').value;
+  const secondary=!$('phase8SecondaryWrap').hidden?$('phase8Secondary').value:null;
+  const chartType=$('phase8ChartType')?.value||'line';
+  const pMetric=PHASE8_METRICS[primary],sMetric=secondary?PHASE8_METRICS[secondary]:null;
+  const pVals=rows.map(r=>pMetric.value(r));
+  const sVals=secondary?rows.map(r=>sMetric.value(r)):[];
+  const sameUnit=!!secondary && pMetric.unit===sMetric.unit;
+
+  const pad={l:58,r:secondary&&!sameUnit?58:18,t:24,b:54},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  let maxP=Math.max(1,...pVals)*1.08;
+  let maxS=secondary?Math.max(1,...sVals)*1.08:1;
+
+  // 積み上げ棒は、同じ単位の2系列だけ本当に積み上げる。
+  // 第1軸のみなら通常の棒グラフと同じ値・高さ。
+  if(chartType==='stacked' && secondary && sameUnit){
+    maxP=Math.max(1,...pVals.map((v,i)=>v+sVals[i]))*1.08;
+    maxS=maxP;
+  }
+
   ctx.font='12px sans-serif';ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){const y=pad.t+ch*i/4;ctx.strokeStyle='rgba(127,127,127,.35)';ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.textAlign='left';ctx.fillStyle='#17212b';ctx.fillText(phase8AxisNumber(maxP*(1-i/4),primary),4,y+4);if(secondary){ctx.fillStyle='#a52a2a';ctx.fillText(phase8AxisNumber(maxS*(1-i/4),secondary),w-pad.r+5,y+4);}}
-  const x=i=>rows.length===1?pad.l+cw/2:pad.l+cw*i/(rows.length-1), yP=v=>pad.t+ch-(v/maxP)*ch,yS=v=>pad.t+ch-(v/maxS)*ch;
+  for(let i=0;i<=4;i++){
+    const y=pad.t+ch*i/4;
+    ctx.strokeStyle='rgba(127,127,127,.35)';
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    ctx.textAlign='left';ctx.fillStyle='#17212b';
+    ctx.fillText(phase8AxisNumber(maxP*(1-i/4),primary),4,y+4);
+    if(secondary&&!sameUnit){
+      ctx.fillStyle='#a52a2a';
+      ctx.fillText(phase8AxisNumber(maxS*(1-i/4),secondary),w-pad.r+5,y+4);
+    }
+  }
+
+  const x=i=>rows.length===1?pad.l+cw/2:pad.l+cw*i/(rows.length-1);
+  const yP=v=>pad.t+ch-(v/maxP)*ch;
+  const yS=v=>pad.t+ch-(v/(sameUnit?maxP:maxS))*ch;
+
   if(chartType==='line'){
-    const line=(vals,yFn,color)=>{ctx.save();ctx.lineWidth=2.5;ctx.strokeStyle=color;ctx.beginPath();vals.forEach((v,i)=>i?ctx.lineTo(x(i),yFn(v)):ctx.moveTo(x(i),yFn(v)));ctx.stroke();ctx.restore();};
-    line(pVals,yP,'#0f4c5c');if(secondary)line(sVals,yS,'#c94a4a');
+    const line=(vals,yFn,color)=>{
+      ctx.save();ctx.lineWidth=2.5;ctx.strokeStyle=color;ctx.fillStyle=color;
+      ctx.beginPath();
+      vals.forEach((v,i)=>i?ctx.lineTo(x(i),yFn(v)):ctx.moveTo(x(i),yFn(v)));
+      if(vals.length>1)ctx.stroke();
+      // 1点しかない場合も見えるように必ずポイントを描画。
+      vals.forEach((v,i)=>{ctx.beginPath();ctx.arc(x(i),yFn(v),4,0,Math.PI*2);ctx.fill();});
+      ctx.restore();
+    };
+    line(pVals,yP,'#0f4c5c');
+    if(secondary)line(sVals,yS,'#c94a4a');
   }else{
-    const slots=Math.max(rows.length,1),groupW=Math.max(18,Math.min(72,cw/slots*.72)),barW=secondary&&chartType==='bar'?groupW/2.2:groupW;
+    const slots=Math.max(rows.length,1);
+    const groupW=Math.max(18,Math.min(72,cw/slots*.72));
+    const sideBarW=secondary&&chartType==='bar'?groupW/2.2:groupW;
+
     rows.forEach((r,i)=>{
       const cx=rows.length===1?pad.l+cw/2:pad.l+cw*(i+.5)/rows.length;
-      if(chartType==='bar'){
-        const pH=ch*Math.min(1,pVals[i]/maxP);ctx.fillStyle='#0f4c5c';ctx.fillRect(cx-(secondary?barW:barW/2),pad.t+ch-pH,barW,pH);
-        if(secondary){const sH=ch*Math.min(1,sVals[i]/maxS);ctx.fillStyle='#c94a4a';ctx.fillRect(cx+2,pad.t+ch-sH,barW,sH);}
-      }else{
-        const denom=Math.max(1,(pVals[i]/maxP)+(secondary?sVals[i]/maxS:0)),pShare=(pVals[i]/maxP)/denom,sShare=secondary?(sVals[i]/maxS)/denom:0,totalH=ch*.9;
-        let y=pad.t+ch;const pH=totalH*pShare;ctx.fillStyle='#0f4c5c';ctx.fillRect(cx-barW/2,y-pH,barW,pH);y-=pH;
-        if(secondary){const sH=totalH*sShare;ctx.fillStyle='#c94a4a';ctx.fillRect(cx-barW/2,y-sH,barW,sH);}
+
+      if(chartType==='bar' || (chartType==='stacked' && secondary && !sameUnit)){
+        // 異なる単位は積み上げると意味が崩れるため、積み上げ指定でも横並び表示。
+        const pH=ch*Math.min(1,pVals[i]/maxP);
+        ctx.fillStyle='#0f4c5c';
+        ctx.fillRect(cx-(secondary?sideBarW:sideBarW/2),pad.t+ch-pH,sideBarW,pH);
+        if(secondary){
+          const sH=ch*Math.min(1,sVals[i]/maxS);
+          ctx.fillStyle='#c94a4a';
+          ctx.fillRect(cx+2,pad.t+ch-sH,sideBarW,sH);
+        }
+      }else if(chartType==='stacked'){
+        const pH=ch*Math.min(1,pVals[i]/maxP);
+        ctx.fillStyle='#0f4c5c';
+        ctx.fillRect(cx-groupW/2,pad.t+ch-pH,groupW,pH);
+        if(secondary){
+          const sH=ch*Math.min(1,sVals[i]/maxP);
+          ctx.fillStyle='#c94a4a';
+          ctx.fillRect(cx-groupW/2,pad.t+ch-pH-sH,groupW,sH);
+        }
       }
     });
   }
-  rows.forEach((r,i)=>{const cx=chartType==='line'?x(i):(rows.length===1?pad.l+cw/2:pad.l+cw*(i+.5)/rows.length);ctx.fillStyle='#17212b';ctx.textAlign='center';ctx.fillText(r.month.slice(2).replace('-','/'),cx,h-26);if(r.inProgress){ctx.font='10px sans-serif';ctx.fillText('進行中',cx,h-10);ctx.font='12px sans-serif';}});
-  ctx.textAlign='left';$('phase8Legend').textContent=`第1軸：${PHASE8_METRICS[primary].label}${secondary?`　／　第2軸：${PHASE8_METRICS[secondary].label}（赤系）`:''}`;
-}
 
+  rows.forEach((r,i)=>{
+    const cx=chartType==='line'?x(i):(rows.length===1?pad.l+cw/2:pad.l+cw*(i+.5)/rows.length);
+    ctx.fillStyle='#17212b';ctx.textAlign='center';
+    const label=r.dailyAxis?r.month:r.month.slice(2).replace('-','/');
+    ctx.fillText(label,cx,h-26);
+    if(r.inProgress&&!r.dailyAxis){
+      ctx.font='10px sans-serif';ctx.fillText('進行中',cx,h-10);ctx.font='12px sans-serif';
+    }
+  });
+
+  ctx.textAlign='left';
+  let legend=`第1軸：${pMetric.label}`;
+  if(secondary){
+    legend+=`　／　第2軸：${sMetric.label}（赤系）`;
+    if(chartType==='stacked'&&!sameUnit)legend+='　※単位が異なるため横並び表示';
+  }
+  $('phase8Legend').textContent=legend;
+}
 function phase8AxisNumber(v,key){if(key==='effectiveReturn'||key==='takeHomeReturn')return `${Math.round(v)}%`;if(v>=10000)return `${Math.round(v/1000)}k`;return String(Math.round(v));}
 
 function populateShiftSelects(){for(const id of ['shiftType','onboardingShiftType']){const sel=$(id);sel.innerHTML='';for(const k of Object.keys(SHIFT_RULES)){const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);}}}
@@ -654,7 +754,7 @@ $('phase8Primary')?.addEventListener('change',renderMonthlyDashboard);
 $('phase8Secondary')?.addEventListener('change',renderMonthlyDashboard);
 $('phase8AddSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=false;$('phase8RemoveSecondary').hidden=false;$('phase8AddSecondary').hidden=true;renderMonthlyDashboard();});
 $('phase8RemoveSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=true;$('phase8RemoveSecondary').hidden=true;$('phase8AddSecondary').hidden=false;renderMonthlyDashboard();});
-window.addEventListener('resize',()=>{if(!$('phase8Chart')?.closest('[hidden]'))drawPhase8Chart((()=>{let r=phase8Rows(),p=$('phase8Period')?.value||'12';return window.phase8CustomActive?phase8CustomRows():p==='all'?r:p==='current'?r.slice(-1):r.slice(-Number(p));})());});
+window.addEventListener('resize',()=>{if(!$('phase8Chart')?.closest('[hidden]'))drawPhase8Chart((()=>{let r=phase8Rows(),p=$('phase8Period')?.value||'12';return window.phase8CustomActive?phase8CustomRows():p==='all'?r:p==='current'?phase8CurrentDailyRows():r.slice(-Number(p));})());});
 $('openSettings').onclick=()=>{loadSettingsForm();$('settingsDialog').showModal();};$('shiftType').onchange=()=>{$('shiftRuleInfo').innerHTML=ruleDescription($('shiftType').value);const r=SHIFT_RULES[$('shiftType').value];$('standardShiftHoursDisplay').value=minutesText(r.shiftMinutes);$('standardHoursDisplay').value=minutesText(r.monthlyMinutes);};$('saveSettings').onclick=e=>{e.preventDefault();saveSettingsForm();$('settingsDialog').close();};
 $('openAdmin').onclick=()=>{const p=prompt('開発者パスワードを入力してください。');if(p!==ADMIN_PASSWORD)return alert('パスワードが違います。');loadAdminForm();$('adminDialog').showModal();};$('saveAdmin').onclick=e=>{e.preventDefault();saveAdminForm();$('adminDialog').close();alert('開発者設定を保存しました。');};
 $('onboardingShiftType').onchange=()=>{$('onboardingRule').innerHTML=ruleDescription($('onboardingShiftType').value);};$('completeOnboarding').onclick=e=>{e.preventDefault();if(!$('agreeDisclaimer').checked)return alert('確認欄にチェックしてください。');state.settings.shiftType=$('onboardingShiftType').value;state.initialized=true;saveState();$('onboardingDialog').close();render();};
