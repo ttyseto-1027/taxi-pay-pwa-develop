@@ -481,6 +481,13 @@ $('tapNumberDialog')?.querySelectorAll('[data-key]').forEach(btn=>btn.addEventLi
 }));
 $('tapNumberOk')?.addEventListener('click',()=>closeTapNumber(true));
 $('tapNumberCancel')?.addEventListener('click',()=>closeTapNumber(false));
+$('tapNumberDialog')?.addEventListener('click',ev=>{
+  if(ev.target===$('tapNumberDialog'))closeTapNumber(false);
+});
+$('tapNumberDialog')?.addEventListener('cancel',ev=>{
+  ev.preventDefault();
+  closeTapNumber(false);
+});
 
 // Normal休憩/深夜休憩のセットから別操作へ移った時に 78分→1時間18分 のように正規化。
 document.addEventListener('pointerdown',ev=>{
