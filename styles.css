@@ -888,3 +888,21 @@ tr[hidden] { display: none !important; }
     max-width:none;
   }
 }
+
+/* Build 20260825-01: Phase 8 axis layout */
+.phase8-axis-stack{display:grid;gap:10px;min-width:0}
+.phase8-axis-row{display:flex;gap:10px;align-items:end;min-width:0}
+.phase8-axis-row label{flex:0 1 100%;width:100%;min-width:0}
+.phase8-axis-row #phase8Primary,
+.phase8-axis-row #phase8Secondary{width:100%;max-width:none}
+.phase8-axis-row #phase8SecondaryWrap{flex:0 1 100%;width:100%;max-width:none;min-width:0}
+.phase8-axis-row button{flex:0 0 auto;white-space:nowrap}
+@media(min-width:641px){
+  .phase8-axis-stack{min-width:360px}
+  .phase8-axis-row label{width:360px;max-width:360px}
+  .phase8-axis-row #phase8SecondaryWrap{width:360px;max-width:360px}
+}
+@media(max-width:640px){
+  .phase8-axis-row{display:grid;grid-template-columns:1fr}
+  .phase8-axis-row button{width:100%}
+}

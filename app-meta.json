@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260824-18",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260824-18-interaction-hotfix",
-  "releasedAtJst": "2026/08/25 00:02:53 JST",
+  "build": "20260825-01",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260825-01-phase8-axis-layout",
+  "releasedAtJst": "2026/08/25 00:15:21 JST",
   "environment": "DEVELOP"
 }
