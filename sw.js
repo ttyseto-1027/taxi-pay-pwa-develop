@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260825-11-axis-ticks';
+const CACHE = 'taxi-pay-v1.4-beta-20260825-12-mobile-keypad';
 
 const FILES = [
   './',

@@ -927,3 +927,12 @@ tr[hidden] { display: none !important; }
     margin:0;
   }
 }
+
+/* Build 20260825-12: mobile keypad matches desktop numeric layout */
+@media (max-width:768px){
+ #tapNumberDialog{width:min(92vw,330px);max-width:330px;box-sizing:border-box}
+ #tapNumberDialog .tap-number-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;width:100%}
+ #tapNumberDialog .tap-number-grid>button{width:100%!important;min-width:0!important}
+ #tapBreakUnits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%}
+ #tapBreakUnits[hidden]{display:none!important}
+}
