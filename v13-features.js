@@ -1,6 +1,6 @@
 (() => {
 'use strict';
-const D=window.TaxiPayDiagnostics, $=id=>document.getElementById(id), LS=(window.TaxiPayStorageSafety?.primaryKey||'taxiPayPwaStateV10'), DRAFT='taxiPayV13EntryDraft', PROFILE='taxiPayV13Profile';
+const D=window.TaxiPayDiagnostics, $=id=>document.getElementById(id), LS=(window.TaxiPayStorageSafety?.primaryKey||'taxiPayPwaStateV10'), IS_DEVELOP=!!window.TaxiPayStorageSafety?.isDevelop, DRAFT=IS_DEVELOP?'taxiPayDevelopV13EntryDraft':'taxiPayV13EntryDraft', PROFILE=IS_DEVELOP?'taxiPayDevelopV13Profile':'taxiPayV13Profile';
 
 function readStoredProfile(){
   try{return JSON.parse(sessionStorage.getItem(PROFILE)||'null')}
@@ -79,7 +79,7 @@ function currentMonthEntries(){const ym=$('currentMonth')?.value||'';return (sta
 function totalWorkMinutes(entries){return (entries||[]).reduce((a,e)=>{if(e.paidLeaveUnits)return a;const [ih,im]=(e.clockIn||'0:0').split(':').map(Number),[oh,om]=(e.clockOut||'0:0').split(':').map(Number);let x=oh*60+om-(ih*60+im);if(x<=0)x+=1440;return a+Math.max(0,x-Number(e.normalBreakMinutes||0)-Number(e.nightBreakMinutes||0));},0)}
 const yen=v=>`${Math.max(0,Math.round(Number(v)||0)).toLocaleString('ja-JP')}円`;
 const textNumber=id=>Number(($(id)?.textContent||'0').replace(/[^0-9-]/g,''))||0;
-const SALES_TARGET_PREFIX='taxiPaySalesTarget:v1:';
+const SALES_TARGET_PREFIX=IS_DEVELOP?'taxiPayDevelopSalesTarget:v1:':'taxiPaySalesTarget:v1:';
 const selectedPayrollMonth=()=>String($('currentMonth')?.value||'');
 const salesTargetKey=ym=>`${SALES_TARGET_PREFIX}${ym}`;
 function previousPayrollMonth(ym){const [y,m]=String(ym||'').split('-').map(Number);if(!y||!m)return '';const d=new Date(y,m-2,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
@@ -93,7 +93,7 @@ function sanitizeSalesTarget(input){
 function readSalesTarget(ym){try{const x=JSON.parse(localStorage.getItem(salesTargetKey(ym))||'null');return x?sanitizeSalesTarget(x):null}catch{return null}}
 function initialSalesTarget(ym){
   const saved=readSalesTarget(ym);if(saved)return {...saved,source:'saved'};
-  const legacy=localStorage.getItem(`taxiPayTargetTakeHome:${ym}`);
+  const legacy=IS_DEVELOP?null:localStorage.getItem(`taxiPayTargetTakeHome:${ym}`);
   const previous=readSalesTarget(previousPayrollMonth(ym));
   if(previous)return {...previous,source:'previous'};
   if(legacy!==null)return {...sanitizeSalesTarget({targetTakeHome:legacy,remainingShifts:'',rounding:1000}),source:'legacy'};

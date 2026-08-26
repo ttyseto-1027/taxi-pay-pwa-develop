@@ -1,9 +1,12 @@
 'use strict';
 (() => {
-  const TOKEN_KEY = 'taxiPayDriveTokenV1';
-  const META_KEY = 'taxiPayDriveMetaV2';
-  const DEVICE_KEY = 'taxiPayDeviceNameV1';
-  const SAFETY_KEY = 'taxiPayBeforeRestoreV1';
+  const IS_DEVELOP=!!window.TaxiPayStorageSafety?.isDevelop;
+  const TOKEN_KEY = IS_DEVELOP?'taxiPayDevelopDriveTokenV1':'taxiPayDriveTokenV1';
+  const META_KEY = IS_DEVELOP?'taxiPayDevelopDriveMetaV2':'taxiPayDriveMetaV2';
+  const DEVICE_KEY = IS_DEVELOP?'taxiPayDevelopDeviceNameV1':'taxiPayDeviceNameV1';
+  const SAFETY_KEY = IS_DEVELOP?'taxiPayDevelopBeforeRestoreV1':'taxiPayBeforeRestoreV1';
+  const SALES_TARGET_PREFIX=IS_DEVELOP?'taxiPayDevelopSalesTarget:v1:':'taxiPaySalesTarget:v1:';
+  const LAST_IMPORTED_KEY=IS_DEVELOP?'taxiPayDevelopLastImportedAtJst':'taxiPayLastImportedAtJst';
   const FOLDER_NAME = '給与シミュレーター';
   const RETENTION_DAYS = 90;
 
@@ -114,7 +117,7 @@
     const salesTargets = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key?.startsWith('taxiPaySalesTarget:v1:')) {
+      if (key?.startsWith(SALES_TARGET_PREFIX)) {
         salesTargets[key] = localStorage.getItem(key);
       }
     }
@@ -153,7 +156,7 @@
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key?.startsWith('taxiPaySalesTarget:v1:')) keysToRemove.push(key);
+      if (key?.startsWith(SALES_TARGET_PREFIX)) keysToRemove.push(key);
     }
     keysToRemove.forEach(key => localStorage.removeItem(key));
 
@@ -161,7 +164,7 @@
       localStorage.setItem(key, String(value));
     });
 
-    localStorage.setItem('taxiPayLastImportedAtJst', jstNow());
+    localStorage.setItem(LAST_IMPORTED_KEY, jstNow());
   }
 
   function summary(backup) {

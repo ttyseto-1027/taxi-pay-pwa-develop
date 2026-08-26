@@ -8,10 +8,10 @@
   const path = String(root.location?.pathname || '');
   const isDevelop = path.includes('taxi-pay-pwa-develop');
   const primaryKey = isDevelop ? 'taxiPayPwaDevelopStateV10' : 'taxiPayPwaStateV10';
-  const sharedVersionKeys = Array.from({length:10}, (_,i)=>`taxiPayPwaStateV${10-i}`);
-  const legacyKeys = isDevelop
-    ? [primaryKey, ...sharedVersionKeys]
-    : sharedVersionKeys;
+  const productionVersionKeys = Array.from({length:10}, (_,i)=>`taxiPayPwaStateV${10-i}`);
+  const developVersionKeys = Array.from({length:10}, (_,i)=>`taxiPayPwaDevelopStateV${10-i}`);
+  // DEVELOPは本番キーを自動読込しない。救出はrescue-readonly.htmlだけが読取専用で行う。
+  const legacyKeys = isDevelop ? developVersionKeys : productionVersionKeys;
   const recoveryKey = isDevelop ? 'taxiPayDevelopRecoverySnapshotsV1' : 'taxiPayRecoverySnapshotsV1';
   const diagnosticKey = isDevelop ? 'taxiPayDevelopStorageDiagnosticsV1' : 'taxiPayStorageDiagnosticsV1';
   const MAX_SNAPSHOTS = 5;
