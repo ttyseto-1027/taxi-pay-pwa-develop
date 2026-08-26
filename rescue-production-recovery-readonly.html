@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>給与シミュレーター 本番スナップショット救出診断</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;line-height:1.55;color:#17212b}h1{font-size:23px}.note{border:2px solid #176273;border-radius:12px;padding:14px;margin:12px 0}.warn{border-color:#9a5b00;background:#fff7e6}.ok{border-color:#287a3d;background:#eefaf1}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}button{font-size:16px;padding:12px 16px;margin:8px 6px 8px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f8;padding:12px;border-radius:8px}.small{font-size:13px;color:#5b6570}</style></head>
+<body>
+<h1>本番スナップショット救出診断（読取専用）</h1>
+<div class="note"><b>このページは本番側の退避スナップショットと保存診断ログを読み取るだけです。</b><br>保存・変更・削除・復元・外部送信は行いません。</div>
+<div id="summary"></div>
+<h2>退避スナップショット</h2><div id="snapshots"></div>
+<h2>保存診断ログ</h2><div id="logs"></div>
+<button id="copy">診断結果をコピー</button>
+<pre id="raw"></pre>
+<script>
+(()=>{'use strict';
+const RECOVERY='taxiPayRecoverySnapshotsV1';
+const DIAG='taxiPayStorageDiagnosticsV1';
+function parse(raw){try{return {ok:true,value:JSON.parse(raw)}}catch(e){return {ok:false,error:String(e)}}}
+function stateInfo(raw){const p=parse(raw);const d=p.ok?p.value:null;return {json:p.ok,length:raw?.length||0,entries:Array.isArray(d?.entries)?d.entries.length:null,history:Array.isArray(d?.history)?d.history.length:null,initialized:d&&typeof d==='object'?'initialized' in d?d.initialized:null:null,data:d};}
+let recRaw=null,diagRaw=null;try{recRaw=localStorage.getItem(RECOVERY);diagRaw=localStorage.getItem(DIAG);}catch(e){}
+const recParsed=parse(recRaw||'[]');
+const snapshots=recParsed.ok&&Array.isArray(recParsed.value)?recParsed.value:[];
+const rows=snapshots.map((s,i)=>{const info=stateInfo(typeof s?.raw==='string'?s.raw:'');return {index:i+1,at:s?.at||'',sourceKey:s?.sourceKey||'',reason:s?.reason||'',...info};});
+const rich=rows.filter(r=>(Number(r.entries)||0)+(Number(r.history)||0)>0);
+const diagParsed=parse(diagRaw||'[]');
+const logs=diagParsed.ok&&Array.isArray(diagParsed.value)?diagParsed.value:[];
+document.getElementById('summary').innerHTML=`<div class="note ${rich.length?'ok':'warn'}"><b>スナップショット: ${rows.length}件 / 実データ入り: ${rich.length}件</b><br>保存診断ログ: ${logs.length}件</div>`;
+document.getElementById('snapshots').innerHTML=rows.length?'<table><tr><th>#</th><th>時刻</th><th>元キー</th><th>理由</th><th>entries</th><th>history</th><th>文字数</th></tr>'+rows.map(r=>`<tr><td>${r.index}</td><td>${r.at}</td><td>${r.sourceKey}</td><td>${r.reason}</td><td>${r.entries??'—'}</td><td>${r.history??'—'}</td><td>${r.length}</td></tr>`).join('')+'</table>':'<div class="note warn">退避スナップショットは見つかりませんでした。</div>';
+document.getElementById('logs').innerHTML=logs.length?'<pre>'+JSON.stringify(logs,null,2).replace(/</g,'&lt;')+'</pre>':'<div class="note">保存診断ログはありません。</div>';
+const report={generatedAt:new Date().toISOString(),origin:location.origin,userAgent:navigator.userAgent,recoveryKey:RECOVERY,recoveryExists:recRaw!==null,recoveryParseOk:recParsed.ok,snapshots:rows.map(r=>({index:r.index,at:r.at,sourceKey:r.sourceKey,reason:r.reason,entries:r.entries,history:r.history,initialized:r.initialized,length:r.length,data:r.data})),diagnosticKey:DIAG,diagnosticExists:diagRaw!==null,diagnosticParseOk:diagParsed.ok,diagnosticLogs:logs};
+const text=JSON.stringify(report,null,2);document.getElementById('raw').textContent=text;
+document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(text);alert('スナップショット診断結果をコピーしました。')}catch(e){alert('コピーできませんでした。画面をスクリーンショットしてください。')}};
+})();
+</script>
+</body></html>
