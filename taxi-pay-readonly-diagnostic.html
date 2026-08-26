@@ -3,48 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>保存状態診断（読取専用）</title>
+<title>保存状態診断（読取専用・全確認版）</title>
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;margin:18px;line-height:1.5;color:#17212b}
 h1{font-size:22px}.note{padding:12px;border:2px solid #0f5968;border-radius:10px}
-table{border-collapse:collapse;width:100%;margin-top:16px;font-size:13px}
-th,td{border:1px solid #bbb;padding:7px;text-align:left}th{background:#eef3f5}
+table{border-collapse:collapse;width:100%;margin-top:16px;font-size:12px}
+th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eef3f5}
+code{word-break:break-all}
 </style>
 </head>
 <body>
-<h1>保存状態診断（読取専用）</h1>
-<div class="note">データの変更・削除・復元は行いません。保存状態だけを読み取ります。</div>
+<h1>保存状態診断（読取専用・全確認版）</h1>
+<div class="note">変更・削除・復元・外部送信は行いません。localStorageを読み取るだけです。</div>
 <p id="origin"></p>
+
+<h2>V1〜V10</h2>
 <table>
-<thead><tr><th>キー</th><th>存在</th><th>JSON</th><th>entries</th><th>history</th></tr></thead>
-<tbody id="out"></tbody>
+<thead><tr><th>キー</th><th>存在</th><th>JSON</th><th>entries</th><th>history</th><th>initialized</th><th>shiftType</th><th>文字数</th></tr></thead>
+<tbody id="versions"></tbody>
 </table>
+
+<h2>taxiPay系の全localStorageキー</h2>
+<table>
+<thead><tr><th>キー</th><th>JSON</th><th>概要</th><th>文字数</th></tr></thead>
+<tbody id="allkeys"></tbody>
+</table>
+
 <script>
 "use strict";
 (function(){
- const keys=["taxiPayPwaStateV10","taxiPayPwaStateV9","taxiPayPwaStateV8","taxiPayPwaStateV7","taxiPayPwaStateV6","taxiPayPwaStateV5"];
- document.getElementById("origin").textContent="Origin: "+location.origin;
- const out=document.getElementById("out");
- keys.forEach(function(key){
-   let exists="なし",json="—",entries="—",history="—";
-   try{
-     const raw=localStorage.getItem(key);
-     if(raw!==null){
-       exists="あり";
-       try{
-         const obj=JSON.parse(raw);
-         json="正常";
-         entries=Array.isArray(obj.entries)?String(obj.entries.length):"配列なし";
-         history=Array.isArray(obj.history)?String(obj.history.length):"配列なし";
-       }catch(e){json="解析エラー";}
-     }
-   }catch(e){exists="読取エラー";json="読取エラー";}
-   const tr=document.createElement("tr");
-   [key,exists,json,entries,history].forEach(function(v){
-     const td=document.createElement("td");td.textContent=v;tr.appendChild(td);
-   });
-   out.appendChild(tr);
- });
+  document.getElementById("origin").textContent="Origin: "+location.origin;
+
+  function td(v){const x=document.createElement("td");x.textContent=String(v);return x;}
+  function inspectRaw(raw){
+    const out={json:"—",entries:"—",history:"—",initialized:"—",shiftType:"—",summary:"—"};
+    if(raw===null)return out;
+    try{
+      const obj=JSON.parse(raw);
+      out.json="正常";
+      if(obj && typeof obj==="object"){
+        out.entries=Array.isArray(obj.entries)?obj.entries.length:"配列なし";
+        out.history=Array.isArray(obj.history)?obj.history.length:"配列なし";
+        out.initialized=("initialized" in obj)?String(obj.initialized):"—";
+        out.shiftType=(obj.settings && typeof obj.settings==="object" && "shiftType" in obj.settings)?String(obj.settings.shiftType):"—";
+        const parts=[];
+        if(Array.isArray(obj.entries))parts.push("entries="+obj.entries.length);
+        if(Array.isArray(obj.history))parts.push("history="+obj.history.length);
+        if("initialized" in obj)parts.push("initialized="+obj.initialized);
+        if(obj.settings && typeof obj.settings==="object" && "shiftType" in obj.settings)parts.push("shiftType="+obj.settings.shiftType);
+        out.summary=parts.length?parts.join(" / "):Array.isArray(obj)?"配列 "+obj.length+"件":"JSONオブジェクト";
+      }else{
+        out.summary=typeof obj;
+      }
+    }catch(e){
+      out.json="解析エラー";
+      out.summary="非JSONまたは破損";
+    }
+    return out;
+  }
+
+  const vb=document.getElementById("versions");
+  for(let n=10;n>=1;n--){
+    const key="taxiPayPwaStateV"+n;
+    let raw=null, exists="なし";
+    try{raw=localStorage.getItem(key); if(raw!==null)exists="あり";}catch(e){exists="読取エラー";}
+    const i=inspectRaw(raw);
+    const tr=document.createElement("tr");
+    [key,exists,i.json,i.entries,i.history,i.initialized,i.shiftType,raw===null?0:raw.length].forEach(v=>tr.appendChild(td(v)));
+    vb.appendChild(tr);
+  }
+
+  const keys=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k && /taxipay/i.test(k)) keys.push(k);
+    }
+  }catch(e){}
+  keys.sort();
+
+  const ab=document.getElementById("allkeys");
+  for(const key of keys){
+    let raw=null;
+    try{raw=localStorage.getItem(key);}catch(e){}
+    const i=inspectRaw(raw);
+    const tr=document.createElement("tr");
+    [key,i.json,i.summary,raw===null?0:raw.length].forEach(v=>tr.appendChild(td(v)));
+    ab.appendChild(tr);
+  }
 })();
 </script>
 </body>
