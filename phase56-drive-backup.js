@@ -105,7 +105,8 @@
   }
 
   function payload() {
-    const state = localStorage.getItem('taxiPayPwaStateV10');
+    const storageApi = window.TaxiPayStorageSafety;
+    const state = storageApi?.getPrimaryRaw() || (storageApi?.getHealth().sourceKey ? localStorage.getItem(storageApi.getHealth().sourceKey) : null);
     if (!state) {
       throw new Error('端末に保存された給与シミュレーターデータがありません。');
     }
@@ -139,11 +140,15 @@
   }
 
   function applyPayload(backup) {
-    if (!backup?.data?.state) {
+    if (!backup?.data?.state || typeof backup.data.state !== 'object' ||
+        !Array.isArray(backup.data.state.entries) || !Array.isArray(backup.data.state.history)) {
       throw new Error('給与シミュレーターのバックアップ形式ではありません。');
     }
 
-    localStorage.setItem('taxiPayPwaStateV10', JSON.stringify(backup.data.state));
+    const storageApi = window.TaxiPayStorageSafety;
+    if (!storageApi) throw new Error('保存保護機能を読み込めませんでした。');
+    storageApi.saveRecoverySnapshot('before-drive-restore');
+    storageApi.save(backup.data.state, 'drive-restore');
 
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {

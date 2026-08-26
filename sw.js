@@ -1,9 +1,10 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260825-12-mobile-keypad';
+const CACHE = 'taxi-pay-v1.4-beta-20260826-14-data-safety';
 
 const FILES = [
   './',
   './index.html',
   './styles.css',
+  './storage-safety.js',
   './app.js',
   './tax-table-2026.js',
   './manifest.json',
