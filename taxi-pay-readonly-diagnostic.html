@@ -3,94 +3,93 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>保存状態診断（読取専用・全確認版）</title>
+<title>保存状態診断（読取専用・総合版）</title>
 <style>
-body{font-family:system-ui,-apple-system,sans-serif;margin:18px;line-height:1.5;color:#17212b}
+body{font-family:system-ui,-apple-system,sans-serif;margin:18px;line-height:1.45;color:#17212b}
 h1{font-size:22px}.note{padding:12px;border:2px solid #0f5968;border-radius:10px}
-table{border-collapse:collapse;width:100%;margin-top:16px;font-size:12px}
+table{border-collapse:collapse;width:100%;margin-top:12px;font-size:12px}
 th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eef3f5}
-code{word-break:break-all}
+pre{white-space:pre-wrap;word-break:break-word;background:#f4f6f7;padding:10px;border:1px solid #ccd6da;border-radius:8px;font-size:11px;max-height:420px;overflow:auto}
+button{font:inherit;padding:10px 14px;margin:8px 0}
 </style>
 </head>
 <body>
-<h1>保存状態診断（読取専用・全確認版）</h1>
+<h1>保存状態診断（読取専用・総合版）</h1>
 <div class="note">変更・削除・復元・外部送信は行いません。localStorageを読み取るだけです。</div>
 <p id="origin"></p>
 
 <h2>V1〜V10</h2>
-<table>
-<thead><tr><th>キー</th><th>存在</th><th>JSON</th><th>entries</th><th>history</th><th>initialized</th><th>shiftType</th><th>文字数</th></tr></thead>
-<tbody id="versions"></tbody>
-</table>
+<table><thead><tr><th>キー</th><th>存在</th><th>JSON</th><th>entries</th><th>history</th><th>initialized</th><th>shiftType</th><th>文字数</th></tr></thead><tbody id="versions"></tbody></table>
 
 <h2>taxiPay系の全localStorageキー</h2>
-<table>
-<thead><tr><th>キー</th><th>JSON</th><th>概要</th><th>文字数</th></tr></thead>
-<tbody id="allkeys"></tbody>
-</table>
+<table><thead><tr><th>キー</th><th>JSON</th><th>概要</th><th>文字数</th></tr></thead><tbody id="allkeys"></tbody></table>
+
+<h2>V10の構造</h2><pre id="v10detail"></pre>
+
+<h2>認証診断ログ（V17）</h2><pre id="authlog"></pre>
+
+<h2>アプリ診断ログ（V13）</h2><pre id="applog"></pre>
+
+<button id="copyAll" type="button">診断結果をコピー</button>
+<p id="copyStatus"></p>
 
 <script>
 "use strict";
 (function(){
-  document.getElementById("origin").textContent="Origin: "+location.origin;
-
-  function td(v){const x=document.createElement("td");x.textContent=String(v);return x;}
-  function inspectRaw(raw){
-    const out={json:"—",entries:"—",history:"—",initialized:"—",shiftType:"—",summary:"—"};
-    if(raw===null)return out;
-    try{
-      const obj=JSON.parse(raw);
-      out.json="正常";
-      if(obj && typeof obj==="object"){
-        out.entries=Array.isArray(obj.entries)?obj.entries.length:"配列なし";
-        out.history=Array.isArray(obj.history)?obj.history.length:"配列なし";
-        out.initialized=("initialized" in obj)?String(obj.initialized):"—";
-        out.shiftType=(obj.settings && typeof obj.settings==="object" && "shiftType" in obj.settings)?String(obj.settings.shiftType):"—";
-        const parts=[];
-        if(Array.isArray(obj.entries))parts.push("entries="+obj.entries.length);
-        if(Array.isArray(obj.history))parts.push("history="+obj.history.length);
-        if("initialized" in obj)parts.push("initialized="+obj.initialized);
-        if(obj.settings && typeof obj.settings==="object" && "shiftType" in obj.settings)parts.push("shiftType="+obj.settings.shiftType);
-        out.summary=parts.length?parts.join(" / "):Array.isArray(obj)?"配列 "+obj.length+"件":"JSONオブジェクト";
-      }else{
-        out.summary=typeof obj;
-      }
-    }catch(e){
-      out.json="解析エラー";
-      out.summary="非JSONまたは破損";
-    }
-    return out;
-  }
-
-  const vb=document.getElementById("versions");
-  for(let n=10;n>=1;n--){
-    const key="taxiPayPwaStateV"+n;
-    let raw=null, exists="なし";
-    try{raw=localStorage.getItem(key); if(raw!==null)exists="あり";}catch(e){exists="読取エラー";}
-    const i=inspectRaw(raw);
-    const tr=document.createElement("tr");
-    [key,exists,i.json,i.entries,i.history,i.initialized,i.shiftType,raw===null?0:raw.length].forEach(v=>tr.appendChild(td(v)));
-    vb.appendChild(tr);
-  }
-
-  const keys=[];
+ const origin="Origin: "+location.origin;
+ document.getElementById("origin").textContent=origin;
+ function td(v){const x=document.createElement("td");x.textContent=String(v);return x;}
+ function inspectRaw(raw){
+  const out={json:"—",entries:"—",history:"—",initialized:"—",shiftType:"—",summary:"—"};
+  if(raw===null)return out;
   try{
-    for(let i=0;i<localStorage.length;i++){
-      const k=localStorage.key(i);
-      if(k && /taxipay/i.test(k)) keys.push(k);
-    }
-  }catch(e){}
-  keys.sort();
-
-  const ab=document.getElementById("allkeys");
-  for(const key of keys){
-    let raw=null;
-    try{raw=localStorage.getItem(key);}catch(e){}
-    const i=inspectRaw(raw);
-    const tr=document.createElement("tr");
-    [key,i.json,i.summary,raw===null?0:raw.length].forEach(v=>tr.appendChild(td(v)));
-    ab.appendChild(tr);
-  }
+   const obj=JSON.parse(raw); out.json="正常";
+   if(obj&&typeof obj==="object"){
+    out.entries=Array.isArray(obj.entries)?obj.entries.length:"配列なし";
+    out.history=Array.isArray(obj.history)?obj.history.length:"配列なし";
+    out.initialized=("initialized" in obj)?String(obj.initialized):"—";
+    out.shiftType=(obj.settings&&typeof obj.settings==="object"&&"shiftType" in obj.settings)?String(obj.settings.shiftType):"—";
+    const parts=[];
+    if(Array.isArray(obj.entries))parts.push("entries="+obj.entries.length);
+    if(Array.isArray(obj.history))parts.push("history="+obj.history.length);
+    if("initialized" in obj)parts.push("initialized="+obj.initialized);
+    if(obj.settings&&typeof obj.settings==="object"&&"shiftType" in obj.settings)parts.push("shiftType="+obj.settings.shiftType);
+    out.summary=parts.length?parts.join(" / "):Array.isArray(obj)?"配列 "+obj.length+"件":"JSONオブジェクト";
+   }else out.summary=typeof obj;
+  }catch(e){out.json="解析エラー";out.summary="非JSONまたは破損";}
+  return out;
+ }
+ const rows=[];
+ const vb=document.getElementById("versions");
+ for(let n=10;n>=1;n--){
+  const key="taxiPayPwaStateV"+n; let raw=null, exists="なし";
+  try{raw=localStorage.getItem(key);if(raw!==null)exists="あり";}catch(e){exists="読取エラー";}
+  const i=inspectRaw(raw); rows.push([key,exists,i.json,i.entries,i.history,i.initialized,i.shiftType,raw===null?0:raw.length]);
+  const tr=document.createElement("tr"); rows.at(-1).forEach(v=>tr.appendChild(td(v))); vb.appendChild(tr);
+ }
+ const all=[];
+ try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&/taxipay/i.test(k))all.push(k);}}catch(e){}
+ all.sort(); const ab=document.getElementById("allkeys"),allRows=[];
+ for(const key of all){let raw=null;try{raw=localStorage.getItem(key);}catch(e){}const i=inspectRaw(raw);const r=[key,i.json,i.summary,raw===null?0:raw.length];allRows.push(r);const tr=document.createElement("tr");r.forEach(v=>tr.appendChild(td(v)));ab.appendChild(tr);}
+ function prettyKey(key){
+  try{const raw=localStorage.getItem(key);if(raw===null)return "なし";const obj=JSON.parse(raw);return JSON.stringify(obj,null,2);}
+  catch(e){try{return localStorage.getItem(key)||"なし";}catch(_){return "読取エラー";}}
+ }
+ document.getElementById("v10detail").textContent=prettyKey("taxiPayPwaStateV10");
+ document.getElementById("authlog").textContent=prettyKey("taxiPayAuthDiagnosticV17");
+ document.getElementById("applog").textContent=prettyKey("taxiPayV13Diagnostics");
+ const report=[
+  origin,"","[V1-V10]",
+  ...rows.map(r=>r.join("\t")),"","[全taxiPayキー]",
+  ...allRows.map(r=>r.join("\t")),"","[V10]",
+  document.getElementById("v10detail").textContent,"","[AuthDiagnosticV17]",
+  document.getElementById("authlog").textContent,"","[V13Diagnostics]",
+  document.getElementById("applog").textContent
+ ].join("\n");
+ document.getElementById("copyAll").onclick=async()=>{
+  try{await navigator.clipboard.writeText(report);document.getElementById("copyStatus").textContent="コピーしました。";}
+  catch(e){document.getElementById("copyStatus").textContent="コピーできませんでした。画面をスクリーンショットしてください。";}
+ };
 })();
 </script>
 </body>
