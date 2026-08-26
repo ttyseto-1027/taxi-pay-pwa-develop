@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>保存状態診断（読取専用）</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;margin:18px;line-height:1.5;color:#17212b}
+h1{font-size:22px}.note{padding:12px;border:2px solid #0f5968;border-radius:10px}
+table{border-collapse:collapse;width:100%;margin-top:16px;font-size:13px}
+th,td{border:1px solid #bbb;padding:7px;text-align:left}th{background:#eef3f5}
+</style>
+</head>
+<body>
+<h1>保存状態診断（読取専用）</h1>
+<div class="note">データの変更・削除・復元は行いません。保存状態だけを読み取ります。</div>
+<p id="origin"></p>
+<table>
+<thead><tr><th>キー</th><th>存在</th><th>JSON</th><th>entries</th><th>history</th></tr></thead>
+<tbody id="out"></tbody>
+</table>
+<script>
+"use strict";
+(function(){
+ const keys=["taxiPayPwaStateV10","taxiPayPwaStateV9","taxiPayPwaStateV8","taxiPayPwaStateV7","taxiPayPwaStateV6"];
+ document.getElementById("origin").textContent="Origin: "+location.origin;
+ const out=document.getElementById("out");
+ keys.forEach(function(key){
+   let exists="なし",json="—",entries="—",history="—";
+   try{
+     const raw=localStorage.getItem(key);
+     if(raw!==null){
+       exists="あり";
+       try{
+         const obj=JSON.parse(raw);
+         json="正常";
+         entries=Array.isArray(obj.entries)?String(obj.entries.length):"配列なし";
+         history=Array.isArray(obj.history)?String(obj.history.length):"配列なし";
+       }catch(e){json="解析エラー";}
+     }
+   }catch(e){exists="読取エラー";json="読取エラー";}
+   const tr=document.createElement("tr");
+   [key,exists,json,entries,history].forEach(function(v){
+     const td=document.createElement("td");td.textContent=v;tr.appendChild(td);
+   });
+   out.appendChild(tr);
+ });
+})();
+</script>
+</body>
+</html>
