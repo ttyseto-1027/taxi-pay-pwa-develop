@@ -1,6 +1,6 @@
 (() => {
 'use strict';
-const D=window.TaxiPayDiagnostics, $=id=>document.getElementById(id), LS='taxiPayPwaStateV10', DRAFT='taxiPayV13EntryDraft', PROFILE='taxiPayV13Profile';
+const D=window.TaxiPayDiagnostics, $=id=>document.getElementById(id), LS=(window.TaxiPayStorageSafety?.primaryKey||'taxiPayPwaStateV10'), DRAFT='taxiPayV13EntryDraft', PROFILE='taxiPayV13Profile';
 
 function readStoredProfile(){
   try{return JSON.parse(sessionStorage.getItem(PROFILE)||'null')}

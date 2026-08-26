@@ -4,7 +4,7 @@
   const meta = window.TAXI_PAY_APP_META || {};
   const PREFIX = 'taxi-pay-';
   const ACK_BUILD_KEY = 'taxiPayAcknowledgedBuildV1';
-  const APP_STATE_KEY = 'taxiPayPwaStateV10';
+  const APP_STATE_KEY = window.TaxiPayStorageSafety?.primaryKey || 'taxiPayPwaStateV10';
 
   function acknowledgedBuild(){
     return String(localStorage.getItem(ACK_BUILD_KEY) || '');
