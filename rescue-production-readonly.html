@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>給与シミュレーター 本番データ救出診断（読取専用）</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;line-height:1.55;color:#17212b}
+h1{font-size:24px}.note{border:2px solid #176273;border-radius:12px;padding:14px;margin:12px 0}
+.warn{border-color:#9a5b00;background:#fff7e6}.ok{border-color:#287a3d;background:#eefaf1}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0 20px}
+th,td{border:1px solid #bbb;padding:7px;text-align:left;vertical-align:top}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f8;padding:12px;border-radius:8px}
+button{font-size:16px;padding:12px 16px;margin:6px 6px 6px 0}
+.small{font-size:13px;color:#5b6570}
+</style>
+</head>
+<body>
+<h1>本番データ救出診断（読取専用）</h1>
+
+<div class="note">
+<b>このページは本番用データだけを確認します。</b><br>
+保存・変更・削除・復元・外部送信は行いません。<br>
+DEVELOP用キー（taxiPayPwaDevelop...）は救出候補から完全に除外します。
+</div>
+
+<p id="summary"></p>
+
+<h2>本番 V1〜V10</h2>
+<div id="versions"></div>
+
+<h2>本番系の想定外候補</h2>
+<div id="unexpected"></div>
+
+<h2>本番データ救出候補</h2>
+<div id="candidates"></div>
+
+<button id="copy">診断結果をコピー</button>
+<p class="small">コピーされるのは、このページが読み取った本番候補の診断情報だけです。</p>
+<pre id="raw"></pre>
+
+<script>
+(()=>{'use strict';
+
+ const PROD_PREFIX='taxiPayPwaStateV';
+ const DEV_MARKER='taxiPayPwaDevelop';
+ const versionRows=[];
+ const unexpectedRows=[];
+ const candidates=[];
+
+ function inspect(key,raw){
+   let parsed=null,valid=false;
+   try{parsed=JSON.parse(raw);valid=true}catch(e){}
+   const entries=valid&&Array.isArray(parsed?.entries)?parsed.entries.length:null;
+   const history=valid&&Array.isArray(parsed?.history)?parsed.history.length:null;
+   const initialized=valid&&typeof parsed==='object'&&parsed!==null?'initialized' in parsed?parsed.initialized:null:null;
+   return {key,exists:raw!==null,length:raw?.length||0,json:valid,entries,history,initialized,parsed};
+ }
+
+ // 本番 V1〜V10を必ず明示確認
+ for(let n=10;n>=1;n--){
+   const key=PROD_PREFIX+n;
+   let raw=null;
+   try{raw=localStorage.getItem(key)}catch(e){}
+   const r=inspect(key,raw);
+   versionRows.push(r);
+   if(r.exists&&r.json){
+     candidates.push({
+       key:r.key,source:'本番V'+n,
+       score:(r.entries||0)+(r.history||0),
+       entries:r.entries,history:r.history,initialized:r.initialized,data:r.parsed
+     });
+   }
+ }
+
+ // 想定外キーのうち、本番データらしいJSONだけを拾う。
+ // DEVELOP系は明示的に除外。
+ const allKeys=[];
+ try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)allKeys.push(k)}}catch(e){}
+ allKeys.sort();
+
+ for(const key of allKeys){
+   if(key.startsWith(PROD_PREFIX)) continue;
+   if(key.includes(DEV_MARKER)) continue;
+
+   let raw=null;
+   try{raw=localStorage.getItem(key)}catch(e){}
+   const r=inspect(key,raw);
+   if(!r.json) continue;
+
+   const hasEntries=Array.isArray(r.parsed?.entries);
+   const hasHistory=Array.isArray(r.parsed?.history);
+   const looksLikePayrollState=
+     (hasEntries||hasHistory) &&
+     r.parsed && typeof r.parsed==='object' &&
+     ('settings' in r.parsed || 'initialized' in r.parsed);
+
+   if(looksLikePayrollState){
+     unexpectedRows.push(r);
+     candidates.push({
+       key:r.key,source:'想定外本番候補',
+       score:(r.entries||0)+(r.history||0),
+       entries:r.entries,history:r.history,initialized:r.initialized,data:r.parsed
+     });
+   }
+ }
+
+ candidates.sort((a,b)=>b.score-a.score);
+
+ const prodPresent=versionRows.filter(r=>r.exists).length;
+ const prodEntries=versionRows.reduce((s,r)=>s+(Number(r.entries)||0),0);
+ const prodHistory=versionRows.reduce((s,r)=>s+(Number(r.history)||0),0);
+
+ document.getElementById('summary').innerHTML=
+   `Origin: <b>${location.origin}</b><br>`+
+   `本番V1〜V10 存在: ${prodPresent}件 / entries合計: ${prodEntries} / history合計: ${prodHistory}<br>`+
+   `想定外本番候補: ${unexpectedRows.length}件`;
+
+ document.getElementById('versions').innerHTML=
+   '<table><tr><th>キー</th><th>存在</th><th>JSON</th><th>entries</th><th>history</th><th>initialized</th><th>文字数</th></tr>'+
+   versionRows.map(r=>`<tr><td>${r.key}</td><td>${r.exists?'あり':'なし'}</td><td>${r.exists?(r.json?'正常':'解析エラー'):'—'}</td><td>${r.entries??'—'}</td><td>${r.history??'—'}</td><td>${r.initialized??'—'}</td><td>${r.length}</td></tr>`).join('')+
+   '</table>';
+
+ document.getElementById('unexpected').innerHTML=
+   unexpectedRows.length
+   ? '<table><tr><th>キー</th><th>entries</th><th>history</th><th>initialized</th><th>文字数</th></tr>'+
+     unexpectedRows.map(r=>`<tr><td>${r.key}</td><td>${r.entries??'—'}</td><td>${r.history??'—'}</td><td>${r.initialized??'—'}</td><td>${r.length}</td></tr>`).join('')+
+     '</table>'
+   : '<div class="note">想定外の本番データ候補は見つかりませんでした。</div>';
+
+ const nonEmpty=candidates.filter(c=>(c.entries||0)+(c.history||0)>0);
+ document.getElementById('candidates').innerHTML=
+   candidates.length
+   ? candidates.map(c=>`<div class="note ${c.score>0?'ok':'warn'}"><b>${c.key}</b>（${c.source}）<br>entries=${c.entries??'—'} / history=${c.history??'—'} / initialized=${String(c.initialized)}</div>`).join('')
+   : '<div class="note warn">本番データ候補は見つかりませんでした。</div>';
+
+ if(nonEmpty.length){
+   const top=document.createElement('div');
+   top.className='note ok';
+   top.innerHTML=`<b>実データ入り候補 ${nonEmpty.length}件を検出しました。</b><br>この時点では復元せず、まず診断結果をコピーして退避してください。`;
+   document.getElementById('candidates').prepend(top);
+ }
+
+ const report={
+   generatedAt:new Date().toISOString(),
+   origin:location.origin,
+   userAgent:navigator.userAgent,
+   productionVersions:versionRows.map(r=>({
+     key:r.key,exists:r.exists,length:r.length,json:r.json,
+     entries:r.entries,history:r.history,initialized:r.initialized
+   })),
+   unexpectedProductionCandidates:unexpectedRows.map(r=>({
+     key:r.key,length:r.length,entries:r.entries,history:r.history,initialized:r.initialized
+   })),
+   candidates:candidates.map(c=>({
+     key:c.key,source:c.source,score:c.score,entries:c.entries,
+     history:c.history,initialized:c.initialized,data:c.data
+   }))
+ };
+
+ const text=JSON.stringify(report,null,2);
+ document.getElementById('raw').textContent=text;
+
+ document.getElementById('copy').onclick=async()=>{
+   try{
+     await navigator.clipboard.writeText(text);
+     alert('本番データ診断結果をコピーしました。');
+   }catch(e){
+     alert('コピーできませんでした。画面をスクリーンショットしてください。');
+   }
+ };
+})();
+</script>
+</body>
+</html>
