@@ -37,7 +37,13 @@ function draftData(){return {date:$('date')?.value||'',paidLeaveType:document.qu
 let draftTimer;
 function saveDraft(){clearTimeout(draftTimer);draftTimer=setTimeout(()=>{try{localStorage.setItem(DRAFT,JSON.stringify(draftData()));D.record('DATA-DRAFT-SAVED','info','入力中データを一時保存');}catch(e){D.notify('入力中データを一時保存できませんでした。','warning','DATA-DRAFT-01',e.message)}},250);}
 function restoreDraft(){let x;try{x=JSON.parse(localStorage.getItem(DRAFT)||'null')}catch{} if(!x||!x.date)return; const current=$('date')?.value; if(current&&current!==new Date().toISOString().slice(0,10))return; for(const k of ['date','grossRevenue','otherPlus','otherMinus','idleA','idleB','clockIn','clockOut','normalBreakHours','normalBreakMinutes','nightBreakHours','nightBreakMinutes','holidayType','editingId'])if($(k)&&x[k]!=null)$(k).value=x[k]; const r=document.querySelector(`input[name="paidLeaveType"][value="${x.paidLeaveType}"]`);if(r)r.checked=true;if($('hadAccident'))$('hadAccident').checked=!!x.hadAccident;if($('hadViolation'))$('hadViolation').checked=!!x.hadViolation;$('grossRevenue')?.dispatchEvent(new Event('input'));D.notify('前回の未保存入力を復元しました。','info','DATA-DRAFT-RESTORED');}
-const form=$('entryForm'); form?.addEventListener('input',saveDraft);form?.addEventListener('change',saveDraft);form?.addEventListener('submit',()=>{const submitted=draftData();setTimeout(()=>{const s=state();const paidLeaveUnits=Number(submitted.paidLeaveType||0);const ok=(s.entries||[]).some(e=>submitted.editingId?e.id===submitted.editingId:(e.date===submitted.date&&Number(e.paidLeaveUnits||0)===paidLeaveUnits&&(paidLeaveUnits>0||Number(e.grossRevenue||0)===Number(submitted.grossRevenue||0))));if(ok){localStorage.removeItem(DRAFT);D.notify('勤務実績を保存しました。','success','DATA-SAVE-OK');}else D.notify('保存結果を確認できませんでした。入力内容は保持されています。','error','DATA-SAVE-VERIFY-01');},150);},true);
+const form=$('entryForm'); form?.addEventListener('input',saveDraft);form?.addEventListener('change',saveDraft);
+window.addEventListener('taxipay:entry-saved',e=>{
+  const entry=e.detail||{};
+  // app.js は StorageSafety.save() の同期書込み＋読戻し照合に成功した場合だけこのイベントを発火する。
+  localStorage.removeItem(DRAFT);
+  D.notify('勤務実績を保存しました。','success','DATA-SAVE-OK',`id=${entry.id||''}`);
+});
 $('resetForm')?.addEventListener('click',()=>{localStorage.removeItem(DRAFT);D.notify('入力欄をクリアしました。','info','DATA-DRAFT-CLEAR');});
 function applyRole(){
   const current=normalizeProfile(window.TaxiPayCurrentProfile)||profile;

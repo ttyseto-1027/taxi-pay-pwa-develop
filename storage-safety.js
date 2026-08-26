@@ -106,6 +106,13 @@
       const sourceRaw=read(health.sourceKey); if(sourceRaw) snapshotRaw(sourceRaw,health.sourceKey,`migration:${reason}`);
     }
     storage.setItem(primaryKey,nextRaw);
+    const verifiedRaw=read(primaryKey);
+    if(verifiedRaw!==nextRaw){
+      const err=new Error('保存後のデータ照合に失敗しました。安全のため以後の保存を停止します。');
+      err.code='STORAGE-SAVE-VERIFY-FAILED';
+      blockWrites('save-verify-failed',err);
+      throw err;
+    }
     writeDiagnostic('state-saved',{reason,primaryKey,entries:Array.isArray(value?.entries)?value.entries.length:null,history:Array.isArray(value?.history)?value.history.length:null});
     health={...health,sourceKey:primaryKey};
   }

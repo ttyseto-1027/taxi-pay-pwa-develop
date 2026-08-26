@@ -757,7 +757,9 @@ $('entryForm').addEventListener('submit',ev=>{
       holidayType:'normal',hadAccident:false,hadViolation:false
     };
     state.entries=state.entries.filter(x=>x.id!==id).concat(entry);
-    saveState();clearEntry();render();return;
+    saveState('entry-save-paid-leave');
+    window.dispatchEvent(new CustomEvent('taxipay:entry-saved',{detail:clone(entry)}));
+    clearEntry();render();return;
   }
 
   if(!syncClock('clockIn')||!syncClock('clockOut'))return;
@@ -787,7 +789,9 @@ $('entryForm').addEventListener('submit',ev=>{
   };
   const err=validateEntry(entry);if(err)return alert(err);
   state.entries=state.entries.filter(x=>x.id!==id).concat(entry);
-  saveState();clearEntry();render();
+  saveState('entry-save');
+  window.dispatchEvent(new CustomEvent('taxipay:entry-saved',{detail:clone(entry)}));
+  clearEntry();render();
 });
 $('resetForm').onclick=clearEntry;
 $('entriesTable').addEventListener('click',ev=>{const edit=ev.target.dataset.edit,del=ev.target.dataset.del;if(edit){const e=state.entries.find(x=>x.id===edit);$('date').value=e.date;$('editingId').value=e.id;const radio=document.querySelector(`input[name="paidLeaveType"][value="${leaveUnits(e)}"]`);if(radio)radio.checked=true;if(leaveUnits(e)===0){
