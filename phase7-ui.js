@@ -74,6 +74,30 @@
       event.preventDefault();
     }
   }, { passive: false });
+
+  // Phase 8 UI: revenue-adjustment fields are optional. On a fresh entry,
+  // present them as blank instead of forcing the user to delete four zeroes.
+  // Calculation code already interprets blank as 0, so calculation/storage
+  // semantics remain unchanged. Existing entries opened for editing are left as-is.
+  const revenueAdjustmentIds = ['idleA', 'idleB', 'otherPlus', 'otherMinus'];
+  const clearFreshRevenueAdjustments = () => {
+    const editingId = document.getElementById('editingId');
+    if (editingId?.value) return;
+    revenueAdjustmentIds.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input && input.value === '0') input.value = '';
+    });
+  };
+  clearFreshRevenueAdjustments();
+  requestAnimationFrame(clearFreshRevenueAdjustments);
+  setTimeout(clearFreshRevenueAdjustments, 0);
+
+  document.getElementById('resetForm')?.addEventListener('click', () => {
+    setTimeout(clearFreshRevenueAdjustments, 0);
+  });
+  document.getElementById('entryForm')?.addEventListener('submit', () => {
+    setTimeout(clearFreshRevenueAdjustments, 0);
+  });
 })();
 
 window.addEventListener('taxipay:profile',(event)=>{const el=document.getElementById('systemInfoMenuLink');if(el)el.hidden=event.detail?.isAdmin!==true;});
