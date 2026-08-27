@@ -68,3 +68,11 @@ jobs:
           grep -q 'device-registry-v14.js' index.html
           grep -q 'STORAGE.save(state' app.js
           grep -q 'normalizeBeforeSave' storage-safety.js
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          order=['storage-safety.js','data-integrity-v14.js','app.js','data-recovery-v14.js','device-registry-v14.js','phase56-drive-backup.js']
+          pos=[s.find(x) for x in order]
+          assert all(x>=0 for x in pos), (order,pos)
+          assert pos==sorted(pos), (order,pos)
+          PY
