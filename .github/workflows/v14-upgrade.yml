@@ -56,8 +56,26 @@ jobs:
           pos=[s.find(x) for x in order]
           assert all(x>=0 for x in pos), (order,pos)
           assert pos==sorted(pos), (order,pos)
+
+          # Phase 8 smartphone navigation contract.
           assert 'id="prevMonth"' in s and 'id="nextMonth"' in s
           assert 'month-navigation-card' in s
+
+          # Phase 9 backup-screen contract: menu and panel must consistently
+          # describe backup/recovery, not the old generic settings screen.
+          assert 'data-view="settings" type="button"><span>バックアップ</span>' in s
+          marker='data-view-panel="settings"'
+          start=s.index(marker)
+          end=s.find('data-view-panel="help"', start)
+          assert end > start
+          backup_panel=s[start:end]
+          assert '<h2>バックアップ</h2>' in backup_panel
+          assert 'Google Driveへのバックアップ・復元、端末ファイルからの過去データ復旧を管理します。' in backup_panel
+          assert '<h2>Google Drive 同期・復元</h2>' in backup_panel
+          assert '<h2>過去のバックアップ</h2>' in backup_panel
+          assert '<h2>設定</h2>' not in backup_panel
+          assert '設定を変更します' not in backup_panel
+
           obsolete=['app-b17.js','storage-safety-b17.js','v13-features-b17.js','v13-features.js.tmp','tools/v14_upgrade.py','verify-build17.html']
           assert all(not Path(x).exists() for x in obsolete), obsolete
           PY
