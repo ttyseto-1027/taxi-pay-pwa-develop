@@ -109,4 +109,15 @@ const state=entries=>({initialized:true,settings:{shiftType:'隔日勤務'},entr
   assert.equal(twice.recordTombstones.length,1);
 }
 
-console.log('v1.4 storage integration regression: 8/8 PASS');
+// 9. A corrupt existing primary state blocks overwrite instead of replacing recoverable bytes.
+{
+  localStorage.clear();
+  localStorage.setItem(STORAGE.primaryKey,'{broken-json');
+  const freshStorage=require('../storage-safety.js');
+  const loaded=freshStorage.loadCandidate();
+  assert.equal(loaded.health.writeBlocked,true);
+  assert.throws(()=>freshStorage.save(state([entry('7','2026-08-16')]),'entry-save'),/安全のため保存を停止/);
+  assert.equal(localStorage.getItem(STORAGE.primaryKey),'{broken-json');
+}
+
+console.log('v1.4 storage integration regression: 9/9 PASS');
