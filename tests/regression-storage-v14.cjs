@@ -85,4 +85,28 @@ const state=entries=>({initialized:true,settings:{shiftType:'隔日勤務'},entr
   assert.equal(saved.recordTombstones.length,0);
 }
 
-console.log('v1.4 storage integration regression: 6/6 PASS');
+// 7. Updating an existing entry preserves its ID, keeps one active row, and does not archive the prior version as a deletion.
+{
+  localStorage.clear();
+  STORAGE.save(state([entry('5','2026-08-14',50000)]),'entry-save');
+  const changed=STORAGE.save(state([entry('5','2026-08-14',52000)]),'entry-save');
+  assert.equal(changed.entries.length,1);
+  assert.equal(changed.entries[0].id,'5');
+  assert.equal(changed.entries[0].grossSales,52000);
+  assert.equal(changed.dataArchive.length,0);
+  assert.equal(changed.recordTombstones.length,0);
+}
+
+// 8. Repeated saves after a deletion must not duplicate archive or tombstone records.
+{
+  localStorage.clear();
+  STORAGE.save(state([entry('6','2026-08-15')]),'entry-save');
+  const once=STORAGE.save(state([]),'app-save');
+  const twice=STORAGE.save(state([]),'app-save');
+  assert.equal(once.dataArchive.length,1);
+  assert.equal(twice.dataArchive.length,1);
+  assert.equal(once.recordTombstones.length,1);
+  assert.equal(twice.recordTombstones.length,1);
+}
+
+console.log('v1.4 storage integration regression: 8/8 PASS');
