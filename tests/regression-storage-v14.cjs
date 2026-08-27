@@ -13,7 +13,7 @@ class MemoryStorage{
 
 global.localStorage=new MemoryStorage();
 global.location={pathname:'/taxi-pay-pwa-develop/'};
-global.navigator={userAgent:'Mozilla/5.0 (iPhone) AppleWebKit Safari'};
+Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Mozilla/5.0 (iPhone) AppleWebKit Safari'},configurable:true});
 global.crypto=require('crypto').webcrypto;
 
 const DI=require('../data-integrity-v14.js');
