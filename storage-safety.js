@@ -94,13 +94,36 @@
     health={...health,writeBlocked:true,reason:String(reason||'blocked')};
     writeDiagnostic('write-blocked',{reason:health.reason,message:String(error?.message||error||'')});
   }
+  function normalizeForSave(value, currentRaw, reason){
+    const integrity=root.TaxiPayDataIntegrity;
+    if(!integrity?.normalizeBeforeSave) return value;
+    let previous={};
+    if(currentRaw){
+      const parsed=safeParse(currentRaw);
+      if(!parsed.ok){
+        const err=new Error('保存前の既存データを解析できないため、安全のため保存を停止します。');
+        err.code='STORAGE-PREVIOUS-STATE-INVALID';
+        blockWrites('previous-state-invalid',err);
+        throw err;
+      }
+      previous=parsed.value;
+    }else if(health.sourceKey&&health.sourceKey!==primaryKey){
+      const sourceRaw=read(health.sourceKey);
+      if(sourceRaw){
+        const parsed=safeParse(sourceRaw);
+        if(parsed.ok) previous=parsed.value;
+      }
+    }
+    return integrity.normalizeBeforeSave(previous,value,reason,integrity.deviceContext?.()||{});
+  }
   function save(value, reason='app-save'){
     if(health.writeBlocked){
       const err=new Error('保存済みデータの読み取りに問題があるため、安全のため保存を停止しました。');
       err.code='STORAGE-WRITE-BLOCKED'; throw err;
     }
-    const nextRaw=JSON.stringify(value);
     const currentRaw=read(primaryKey);
+    const normalized=normalizeForSave(value,currentRaw,reason);
+    const nextRaw=JSON.stringify(normalized);
     if(currentRaw && currentRaw!==nextRaw) snapshotRaw(currentRaw,primaryKey,`before:${reason}`);
     if(!currentRaw && health.sourceKey && health.sourceKey!==primaryKey){
       const sourceRaw=read(health.sourceKey); if(sourceRaw) snapshotRaw(sourceRaw,health.sourceKey,`migration:${reason}`);
@@ -113,8 +136,9 @@
       blockWrites('save-verify-failed',err);
       throw err;
     }
-    writeDiagnostic('state-saved',{reason,primaryKey,entries:Array.isArray(value?.entries)?value.entries.length:null,history:Array.isArray(value?.history)?value.history.length:null});
+    writeDiagnostic('state-saved',{reason,primaryKey,entries:Array.isArray(normalized?.entries)?normalized.entries.length:null,history:Array.isArray(normalized?.history)?normalized.history.length:null,integrityNormalized:normalized!==value});
     health={...health,sourceKey:primaryKey};
+    return normalized;
   }
   function getPrimaryRaw(){ return read(primaryKey); }
   function saveRecoverySnapshot(reason='manual'){

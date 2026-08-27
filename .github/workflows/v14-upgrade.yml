@@ -1,46 +1,84 @@
-name: v1.4 controlled upgrade
+name: v1.4 regression gate
 
 on:
   push:
     branches: [main]
     paths:
-      - 'tools/v14_upgrade.py'
       - '.github/workflows/v14-upgrade.yml'
+      - 'data-integrity-v14.js'
+      - 'data-recovery-v14.js'
+      - 'device-registry-v14.js'
+      - 'storage-safety.js'
+      - 'phase56-drive-backup.js'
+      - 'firebase-auth.js'
+      - 'app.js'
+      - 'index.html'
+      - 'diagnostics.js'
+      - 'phase75-ops.js'
+      - 'tests/regression-v14.cjs'
+      - 'tests/regression-storage-v14.cjs'
+      - 'SPEC_v1.4beta.md'
+      - 'IMPLEMENTATION_HISTORY_v1.4beta.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/v14-upgrade.yml'
+      - 'data-integrity-v14.js'
+      - 'data-recovery-v14.js'
+      - 'device-registry-v14.js'
+      - 'storage-safety.js'
+      - 'phase56-drive-backup.js'
+      - 'firebase-auth.js'
+      - 'app.js'
+      - 'index.html'
+      - 'diagnostics.js'
+      - 'phase75-ops.js'
+      - 'tests/regression-v14.cjs'
+      - 'tests/regression-storage-v14.cjs'
+      - 'SPEC_v1.4beta.md'
+      - 'IMPLEMENTATION_HISTORY_v1.4beta.md'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  upgrade-and-regress:
+  regress:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Apply deterministic upgrade
-        run: python tools/v14_upgrade.py --apply
       - name: Syntax checks
         run: |
           node --check data-integrity-v14.js
           node --check data-recovery-v14.js
+          node --check device-registry-v14.js
+          node --check storage-safety.js
           node --check phase56-drive-backup.js
+          node --check firebase-auth.js
           node --check phase75-ops.js
           node --check app.js
           node --check diagnostics.js
       - name: Regression tests
-        run: node tests/regression-v14.cjs
-      - name: Commit generated upgrade
         run: |
-          if git diff --quiet; then
-            echo 'No generated changes.'
-            exit 0
-          fi
-          git config user.name 'taxi-pay-regression-bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git add -A
-          git commit -m 'Apply v1.4 data safety and recovery upgrade'
-          git push
+          node tests/regression-v14.cjs
+          node tests/regression-storage-v14.cjs
+      - name: Static integration guards
+        run: |
+          grep -q 'data-integrity-v14.js' index.html
+          grep -q 'data-recovery-v14.js' index.html
+          grep -q 'device-registry-v14.js' index.html
+          grep -q 'STORAGE.save(state' app.js
+          grep -q 'normalizeBeforeSave' storage-safety.js
+          grep -q '現行仕様の正本' SPEC_v1.4beta.md
+          grep -q '実装履歴 Version 1.4β' IMPLEMENTATION_HISTORY_v1.4beta.md
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          order=['storage-safety.js','data-integrity-v14.js','app.js','data-recovery-v14.js','device-registry-v14.js','phase56-drive-backup.js']
+          pos=[s.find(x) for x in order]
+          assert all(x>=0 for x in pos), (order,pos)
+          assert pos==sorted(pos), (order,pos)
+          PY
