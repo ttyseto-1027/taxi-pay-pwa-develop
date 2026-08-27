@@ -17,6 +17,8 @@ on:
       - 'phase75-ops.js'
       - 'tests/regression-v14.cjs'
       - 'tests/regression-storage-v14.cjs'
+      - 'SPEC_v1.4beta.md'
+      - 'IMPLEMENTATION_HISTORY_v1.4beta.md'
   pull_request:
     branches: [main]
     paths:
@@ -33,6 +35,8 @@ on:
       - 'phase75-ops.js'
       - 'tests/regression-v14.cjs'
       - 'tests/regression-storage-v14.cjs'
+      - 'SPEC_v1.4beta.md'
+      - 'IMPLEMENTATION_HISTORY_v1.4beta.md'
   workflow_dispatch:
 
 permissions:
@@ -68,6 +72,8 @@ jobs:
           grep -q 'device-registry-v14.js' index.html
           grep -q 'STORAGE.save(state' app.js
           grep -q 'normalizeBeforeSave' storage-safety.js
+          grep -q '現行仕様の正本' SPEC_v1.4beta.md
+          grep -q '実装履歴 Version 1.4β' IMPLEMENTATION_HISTORY_v1.4beta.md
           python - <<'PY'
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
