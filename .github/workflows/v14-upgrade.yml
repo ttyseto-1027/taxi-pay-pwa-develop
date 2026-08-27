@@ -1,10 +1,9 @@
-name: v1.4 controlled upgrade
+name: v1.4 regression gate
 
 on:
   push:
     branches: [main]
     paths:
-      - 'tools/v14_upgrade.py'
       - '.github/workflows/v14-upgrade.yml'
       - 'data-integrity-v14.js'
       - 'data-recovery-v14.js'
@@ -14,12 +13,13 @@ on:
       - 'firebase-auth.js'
       - 'app.js'
       - 'index.html'
+      - 'diagnostics.js'
+      - 'phase75-ops.js'
       - 'tests/regression-v14.cjs'
       - 'tests/regression-storage-v14.cjs'
   pull_request:
     branches: [main]
     paths:
-      - 'tools/v14_upgrade.py'
       - '.github/workflows/v14-upgrade.yml'
       - 'data-integrity-v14.js'
       - 'data-recovery-v14.js'
@@ -29,25 +29,23 @@ on:
       - 'firebase-auth.js'
       - 'app.js'
       - 'index.html'
+      - 'diagnostics.js'
+      - 'phase75-ops.js'
       - 'tests/regression-v14.cjs'
       - 'tests/regression-storage-v14.cjs'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  upgrade-and-regress:
+  regress:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Apply deterministic upgrade
-        run: python tools/v14_upgrade.py --apply
       - name: Syntax checks
         run: |
           node --check data-integrity-v14.js
@@ -63,15 +61,3 @@ jobs:
         run: |
           node tests/regression-v14.cjs
           node tests/regression-storage-v14.cjs
-      - name: Commit generated upgrade
-        if: github.event_name == 'push'
-        run: |
-          if git diff --quiet; then
-            echo 'No generated changes.'
-            exit 0
-          fi
-          git config user.name 'taxi-pay-regression-bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git add -A
-          git commit -m 'Apply v1.4 data safety and recovery upgrade'
-          git push
