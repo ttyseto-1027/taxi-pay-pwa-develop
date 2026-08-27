@@ -14,7 +14,6 @@ class MemoryStorage{
 global.localStorage=new MemoryStorage();
 global.location={pathname:'/taxi-pay-pwa-develop/'};
 Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Mozilla/5.0 (iPhone) AppleWebKit Safari'},configurable:true});
-// Node 22 already exposes Web Crypto as a read-only global. Define a fallback only when absent.
 if(!globalThis.crypto) Object.defineProperty(globalThis,'crypto',{value:require('crypto').webcrypto,configurable:true});
 
 const DI=require('../data-integrity-v14.js');
@@ -62,4 +61,28 @@ const state=entries=>({initialized:true,settings:{shiftType:'隔日勤務'},entr
   assert(!STORAGE.legacyKeys.some(k=>/^taxiPayPwaStateV/.test(k)));
 }
 
-console.log('v1.4 storage integration regression: 4/4 PASS');
+// 5. Re-saving unchanged data must not create an archive/tombstone or change business data.
+{
+  localStorage.clear();
+  const first=STORAGE.save(state([entry('3','2026-08-12',12345)]),'entry-save');
+  const second=STORAGE.save(state([entry('3','2026-08-12',12345)]),'entry-save');
+  assert.equal(second.entries.length,1);
+  assert.equal(second.entries[0].grossSales,12345);
+  assert.equal(second.dataArchive.length,0);
+  assert.equal(second.recordTombstones.length,0);
+  assert.equal(second.entries[0].createdAtJst,first.entries[0].createdAtJst);
+}
+
+// 6. Moving an active entry into closed-month history is not a deletion and must not create a tombstone.
+{
+  localStorage.clear();
+  STORAGE.save(state([entry('4','2026-08-13')]),'entry-save');
+  const closed=state([]);
+  closed.history=[{month:'2026-08',dailyEntries:[entry('4','2026-08-13')]}];
+  const saved=STORAGE.save(closed,'close-month');
+  assert.equal(saved.entries.length,0);
+  assert.equal(saved.dataArchive.length,0);
+  assert.equal(saved.recordTombstones.length,0);
+}
+
+console.log('v1.4 storage integration regression: 6/6 PASS');
