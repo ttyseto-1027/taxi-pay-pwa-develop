@@ -66,5 +66,5 @@ jobs:
           grep -q 'data-integrity-v14.js' index.html
           grep -q 'data-recovery-v14.js' index.html
           grep -q 'device-registry-v14.js' index.html
-          grep -q 'TaxiPayStorageSafety.save' app.js
+          grep -q 'STORAGE.save(state' app.js
           grep -q 'normalizeBeforeSave' storage-safety.js
