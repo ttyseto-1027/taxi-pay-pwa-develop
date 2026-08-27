@@ -16,6 +16,21 @@ on:
       - 'index.html'
       - 'tests/regression-v14.cjs'
       - 'tests/regression-storage-v14.cjs'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/v14_upgrade.py'
+      - '.github/workflows/v14-upgrade.yml'
+      - 'data-integrity-v14.js'
+      - 'data-recovery-v14.js'
+      - 'device-registry-v14.js'
+      - 'storage-safety.js'
+      - 'phase56-drive-backup.js'
+      - 'firebase-auth.js'
+      - 'app.js'
+      - 'index.html'
+      - 'tests/regression-v14.cjs'
+      - 'tests/regression-storage-v14.cjs'
   workflow_dispatch:
 
 permissions:
@@ -49,6 +64,7 @@ jobs:
           node tests/regression-v14.cjs
           node tests/regression-storage-v14.cjs
       - name: Commit generated upgrade
+        if: github.event_name == 'push'
         run: |
           if git diff --quiet; then
             echo 'No generated changes.'
