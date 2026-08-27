@@ -3,7 +3,7 @@
   const IS_DEVELOP=!!window.TaxiPayStorageSafety?.isDevelop;
   const TOKEN_KEY = IS_DEVELOP?'taxiPayDevelopDriveTokenV1':'taxiPayDriveTokenV1';
   const META_KEY = IS_DEVELOP?'taxiPayDevelopDriveMetaV2':'taxiPayDriveMetaV2';
-  const DEVICE_KEY = IS_DEVELOP?'taxiPayDevelopDeviceNameV1':'taxiPayDeviceNameV1';
+  const DEVICE_KEY = 'taxiPayDeviceNameV2';
   const SAFETY_KEY = IS_DEVELOP?'taxiPayDevelopBeforeRestoreV1':'taxiPayBeforeRestoreV1';
   const SALES_TARGET_PREFIX=IS_DEVELOP?'taxiPayDevelopSalesTarget:v1:':'taxiPaySalesTarget:v1:';
   const LAST_IMPORTED_KEY=IS_DEVELOP?'taxiPayDevelopLastImportedAtJst':'taxiPayLastImportedAtJst';
@@ -84,27 +84,14 @@
     el.dataset.kind = kind;
   }
 
-  function defaultDeviceName() {
-    const ua = navigator.userAgent;
-    if (/iPhone|iPad/.test(ua)) return 'iPhone / iPad';
-    if (/Android/.test(ua)) return 'Android';
-    if (/Windows/.test(ua)) return 'Windows PC';
-    if (/Macintosh/.test(ua)) return 'Mac';
-    return 'この端末';
-  }
-
   function deviceName() {
-    return localStorage.getItem(DEVICE_KEY) || defaultDeviceName();
+    return String(window.TaxiPayDeviceRegistry?.getCurrent?.().deviceName || localStorage.getItem(DEVICE_KEY) || '').trim();
   }
-
-  function saveDeviceName() {
-    const value = $('driveDeviceName')?.value.trim();
-    if (!value) {
-      msg('driveSyncMessage', 'デバイス名を入力してください。', 'error');
-      return;
-    }
-    localStorage.setItem(DEVICE_KEY, value);
-    msg('driveSyncMessage', 'デバイス名を端末に保存しました。', 'success');
+  function requireDeviceName() {
+    if (deviceName()) return true;
+    window.TaxiPayDeviceRegistry?.requireNamedDevice?.();
+    msg('driveSyncMessage', 'Google Driveを利用する前に「利用者情報」でこの端末の名前を設定してください。', 'error');
+    return false;
   }
 
   function payload() {
@@ -133,6 +120,8 @@
       schema: 'taxi-pay-drive-v2',
       savedAtJst: jstNow(),
       deviceName: deviceName(),
+      deviceId: window.TaxiPayDataIntegrity?.deviceId?.() || '',
+      browser: window.TaxiPayDataIntegrity?.browserName?.() || '',
       appVersion: window.TAXI_PAY_APP_META?.version || '',
       appBuild: window.TAXI_PAY_APP_META?.build || '',
       data: {
@@ -192,10 +181,6 @@
 
     if ($('driveLastSync')) {
       $('driveLastSync').textContent = m.lastSyncAt ? formatJst(m.lastSyncAt) : '—';
-    }
-
-    if ($('driveDeviceName') && !$('driveDeviceName').value) {
-      $('driveDeviceName').value = deviceName();
     }
 
     if ($('driveSyncNow')) $('driveSyncNow').disabled = syncing;
@@ -448,8 +433,13 @@
     }
   }
 
+  function storageApiSnapshot() {
+    try { return window.TaxiPayStorageSafety?.getPrimaryRaw?.() ?? null; } catch { return null; }
+  }
+
   async function syncNow() {
     if (syncing) return;
+    if (!requireDeviceName()) return;
 
     syncing = true;
     renderStatus();
@@ -474,15 +464,39 @@
         if (!accepted) return;
       }
 
-      // 「バックアップ」ボタンを押した瞬間の状態を固定する。
-      const snapshot = JSON.parse(JSON.stringify(currentPayload));
+      // Drive current.json がある場合は、上書き前に端末データと比較・統合する。
+      // 日時だけで勝者を決めず、内容が異なる競合は利用者が選択する。
+      const currentFile = await findFile('current.json');
+      if (currentFile && window.TaxiPayRecoveryV14?.resolveStates) {
+        const remote = await readDrive(currentFile.id);
+        if (remote?.data?.state) {
+          const resolved = await window.TaxiPayRecoveryV14.resolveStates(
+            currentPayload.data.state,
+            remote.data.state,
+            {local: deviceName() || 'この端末', remote: remote.deviceName || 'Google Drive'}
+          );
+          if (!resolved) {
+            msg('driveSyncMessage', '競合確認がキャンセルされたため、Google Driveは変更していません。', 'info');
+            return;
+          }
+          const before = storageApiSnapshot();
+          try {
+            window.TaxiPayStorageSafety.save(resolved.state, 'drive-merge');
+          } catch (mergeError) {
+            if (before !== null) localStorage.setItem(window.TaxiPayStorageSafety.primaryKey, before);
+            throw mergeError;
+          }
+        }
+      }
+
+      // 利用者が競合を解決した後の端末状態を、今回の確定スナップショットとする。
+      const snapshot = JSON.parse(JSON.stringify(payload()));
 
       // 1回のバックアップにつき1世代を作成。
       const backupName = `backup-${jstStamp()}.json`;
       await uploadJson(backupName, snapshot);
 
-      // current.json は最新版として上書き。
-      const currentFile = await findFile('current.json');
+      // current.json は統合済み最新版として上書き。
       await uploadJson('current.json', snapshot, currentFile?.id || '');
 
       // 90日超の世代を整理。
@@ -520,6 +534,7 @@
 
   async function refreshBackups() {
     const root = $('driveBackupList');
+    if (!requireDeviceName()) return;
     if (!root) return;
 
     try {
@@ -584,6 +599,7 @@
   }
 
   async function restoreDrive(id) {
+    if (!requireDeviceName()) return;
     const accepted = confirm(
       '選択したバックアップをこの端末へ復元します。\n' +
       '現在の端末データは端末内に退避します。\n' +
@@ -607,6 +623,7 @@
   }
 
   function restoreSafety() {
+    if (!requireDeviceName()) return;
     try {
       const saved = JSON.parse(localStorage.getItem(SAFETY_KEY) || 'null');
 
@@ -717,7 +734,6 @@
       $('restoreSafetyButton').hidden = !localStorage.getItem(SAFETY_KEY);
     }
 
-    $('saveDriveDeviceName')?.addEventListener('click', saveDeviceName);
     $('driveSyncNow')?.addEventListener('click', syncNow);
     $('driveRefreshBackups')?.addEventListener('click', refreshBackups);
     $('restoreSafetyButton')?.addEventListener('click', restoreSafety);
