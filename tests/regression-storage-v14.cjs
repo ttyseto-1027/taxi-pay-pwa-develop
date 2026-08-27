@@ -113,10 +113,9 @@ const state=entries=>({initialized:true,settings:{shiftType:'隔日勤務'},entr
 {
   localStorage.clear();
   localStorage.setItem(STORAGE.primaryKey,'{broken-json');
-  const freshStorage=require('../storage-safety.js');
-  const loaded=freshStorage.loadCandidate();
+  const loaded=STORAGE.loadCandidate();
   assert.equal(loaded.health.writeBlocked,true);
-  assert.throws(()=>freshStorage.save(state([entry('7','2026-08-16')]),'entry-save'),/安全のため保存を停止/);
+  assert.throws(()=>STORAGE.save(state([entry('7','2026-08-16')]),'entry-save'),/安全のため保存を停止/);
   assert.equal(localStorage.getItem(STORAGE.primaryKey),'{broken-json');
 }
 
