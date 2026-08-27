@@ -27,6 +27,7 @@ jobs:
           node --check phase56-drive-backup.js
           node --check firebase-auth.js
           node --check phase75-ops.js
+          node --check phase7-ui.js
           node --check app.js
           node --check diagnostics.js
       - name: Regression tests
@@ -40,6 +41,10 @@ jobs:
           grep -q 'device-registry-v14.js' index.html
           grep -q 'STORAGE.save(state' app.js
           grep -q 'normalizeBeforeSave' storage-safety.js
+          grep -q 'phase8-smartphone-ui-fixes' phase7-ui.js
+          grep -q 'touch-action: manipulation' phase7-ui.js
+          grep -q 'month-navigation-card #prevMonth' phase7-ui.js
+          grep -q 'month-navigation-card #nextMonth' phase7-ui.js
           grep -q '現行仕様の正本' SPEC_v1.4beta.md
           grep -q '実装履歴 Version 1.4β' IMPLEMENTATION_HISTORY_v1.4beta.md
           grep -q 'Version 1.4β' README.md
@@ -51,6 +56,8 @@ jobs:
           pos=[s.find(x) for x in order]
           assert all(x>=0 for x in pos), (order,pos)
           assert pos==sorted(pos), (order,pos)
+          assert 'id="prevMonth"' in s and 'id="nextMonth"' in s
+          assert 'month-navigation-card' in s
           obsolete=['app-b17.js','storage-safety-b17.js','v13-features-b17.js','v13-features.js.tmp','tools/v14_upgrade.py','verify-build17.html']
           assert all(not Path(x).exists() for x in obsolete), obsolete
           PY
