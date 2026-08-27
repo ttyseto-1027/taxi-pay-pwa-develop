@@ -1,0 +1,57 @@
+name: Fix payroll month navigation UI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-payroll-month-navigation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move payroll month selector above daily details
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old_nav = '<div class="month-row no-print"><button class="ghost" id="prevMonth">前給与月</button><input id="currentMonth" type="month"/><button class="ghost" id="nextMonth">翌給与月</button></div>\n<p class="note" id="payPeriod"></p>'
+          if s.count(old_nav) != 1:
+              raise SystemExit(f'expected exactly one existing month nav, found {s.count(old_nav)}')
+          s = s.replace(old_nav, '', 1)
+          marker = '<details class="card layout-daily phase7-accordion"><summary><span class="phase7-summary-title">日別明細</span><small class="phase7-summary-note">登録内容の確認・編集</small></summary>'
+          if s.count(marker) != 1:
+              raise SystemExit(f'expected exactly one daily detail marker, found {s.count(marker)}')
+          new_nav = '''<section class="card no-print payroll-month-navigation" aria-label="表示する給与月">
+<h2>表示する給与月</h2>
+<div class="month-row"><button class="ghost" id="prevMonth" type="button">〈 前の給与月</button><label><span class="sr-only">給与月</span><input id="currentMonth" type="month"/></label><span>給与</span><button class="ghost" id="nextMonth" type="button">次の給与月 〉</button></div>
+<p class="note" id="payPeriod"></p>
+<p class="note">日別明細・給与追加調整・給与シミュレーションは、ここで選択した給与月の対象期間を表示します。</p>
+</section>'''
+          s = s.replace(marker, new_nav + '\n' + marker, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Verify navigation IDs are unique
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          for ident in ('prevMonth','currentMonth','nextMonth','payPeriod'):
+              n=s.count(f'id="{ident}"')
+              if n != 1:
+                  raise SystemExit(f'{ident}: expected 1, got {n}')
+          if 'layout-daily' not in s or '給与シミュレーション結果' not in s:
+              raise SystemExit('required work-view sections missing')
+          print('month navigation structural verification passed')
+          PY
+      - name: Commit UI-only change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Restore visible payroll month navigation" || exit 0
+          git push
