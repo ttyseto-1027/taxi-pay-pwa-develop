@@ -61,3 +61,10 @@ jobs:
         run: |
           node tests/regression-v14.cjs
           node tests/regression-storage-v14.cjs
+      - name: Static integration guards
+        run: |
+          grep -q 'data-integrity-v14.js' index.html
+          grep -q 'data-recovery-v14.js' index.html
+          grep -q 'device-registry-v14.js' index.html
+          grep -q 'TaxiPayStorageSafety.save' app.js
+          grep -q 'normalizeBeforeSave' storage-safety.js
