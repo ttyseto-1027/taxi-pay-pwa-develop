@@ -6,6 +6,16 @@ on:
     paths:
       - 'tools/v14_upgrade.py'
       - '.github/workflows/v14-upgrade.yml'
+      - 'data-integrity-v14.js'
+      - 'data-recovery-v14.js'
+      - 'device-registry-v14.js'
+      - 'storage-safety.js'
+      - 'phase56-drive-backup.js'
+      - 'firebase-auth.js'
+      - 'app.js'
+      - 'index.html'
+      - 'tests/regression-v14.cjs'
+      - 'tests/regression-storage-v14.cjs'
   workflow_dispatch:
 
 permissions:
@@ -27,12 +37,17 @@ jobs:
         run: |
           node --check data-integrity-v14.js
           node --check data-recovery-v14.js
+          node --check device-registry-v14.js
+          node --check storage-safety.js
           node --check phase56-drive-backup.js
+          node --check firebase-auth.js
           node --check phase75-ops.js
           node --check app.js
           node --check diagnostics.js
       - name: Regression tests
-        run: node tests/regression-v14.cjs
+        run: |
+          node tests/regression-v14.cjs
+          node tests/regression-storage-v14.cjs
       - name: Commit generated upgrade
         run: |
           if git diff --quiet; then
