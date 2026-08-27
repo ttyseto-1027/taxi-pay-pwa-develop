@@ -1,0 +1,46 @@
+name: v1.4 controlled upgrade
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/v14_upgrade.py'
+      - '.github/workflows/v14-upgrade.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade-and-regress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply deterministic upgrade
+        run: python tools/v14_upgrade.py --apply
+      - name: Syntax checks
+        run: |
+          node --check data-integrity-v14.js
+          node --check data-recovery-v14.js
+          node --check phase56-drive-backup.js
+          node --check phase75-ops.js
+          node --check app.js
+          node --check diagnostics.js
+      - name: Regression tests
+        run: node tests/regression-v14.cjs
+      - name: Commit generated upgrade
+        run: |
+          if git diff --quiet; then
+            echo 'No generated changes.'
+            exit 0
+          fi
+          git config user.name 'taxi-pay-regression-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Apply v1.4 data safety and recovery upgrade'
+          git push
