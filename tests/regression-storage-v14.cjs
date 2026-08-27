@@ -14,7 +14,8 @@ class MemoryStorage{
 global.localStorage=new MemoryStorage();
 global.location={pathname:'/taxi-pay-pwa-develop/'};
 Object.defineProperty(globalThis,'navigator',{value:{userAgent:'Mozilla/5.0 (iPhone) AppleWebKit Safari'},configurable:true});
-global.crypto=require('crypto').webcrypto;
+// Node 22 already exposes Web Crypto as a read-only global. Define a fallback only when absent.
+if(!globalThis.crypto) Object.defineProperty(globalThis,'crypto',{value:require('crypto').webcrypto,configurable:true});
 
 const DI=require('../data-integrity-v14.js');
 global.TaxiPayDataIntegrity=DI;
