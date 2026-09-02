@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260826-18-clean-runtime';
+const CACHE = 'taxi-pay-v1.4-beta-20260903-phase8-mobile-refresh';
 
 const FILES = [
   './',
@@ -31,7 +31,6 @@ const FILES = [
   './phase56-drive-backup.js',
   './profile-diagnostics.js'
 ];
-
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -71,9 +70,9 @@ self.addEventListener('fetch', (event) => {
 
   const isNavigation = event.request.mode === 'navigate';
   const isRuntimeControlFile =
-    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|sw\.js)$/.test(url.pathname);
+    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|phase7-ui\.js|sw\.js)$/.test(url.pathname);
 
-  // 更新判定に使うファイルとHTMLナビゲーションは常にネットワーク優先・HTTPキャッシュ不使用。
+  // 更新判定に使うファイル、Phase 8 UI、HTMLナビゲーションは常にネットワーク優先・HTTPキャッシュ不使用。
   if (isNavigation || isRuntimeControlFile) {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
