@@ -37,6 +37,17 @@
         min-height: 48px;
         font-size: 1rem;
       }
+      .month-navigation-card {
+        border-width: 2px;
+      }
+      .month-navigation-card .month-navigation-title {
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      .month-navigation-card .month-navigation-title strong {
+        display: block;
+        font-size: 1.05rem;
+      }
       .month-navigation-card .month-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -50,15 +61,18 @@
         max-width: none;
         min-height: 46px;
         font-size: 16px;
+        text-align: center;
       }
       .month-navigation-card #prevMonth,
       .month-navigation-card #nextMonth {
         min-width: 0;
-        min-height: 46px;
+        min-height: 48px;
         width: 100%;
-        font-size: .95rem;
+        font-size: 1rem;
+        font-weight: 700;
         white-space: nowrap;
         touch-action: manipulation;
+        border-width: 2px;
       }
       .month-navigation-card #prevMonth { grid-column: 1; }
       .month-navigation-card #nextMonth { grid-column: 2; }
