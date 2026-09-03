@@ -33,7 +33,6 @@ async function requireAssociationIfNeeded(){const user=auth.currentUser;if(!user
   const named=devices.filter(d=>d.deviceName&&d.active!==false);
   const created=await userCreatedAt().catch(()=>0);
   const newUser=created>=ROLLOUT_AT;
-  if(current&&!current.deviceName&&!newUser){notify('端末名を設定してください。「利用者情報」から設定できます。','info','DEVICE-NAME-REMINDER');renderCard();return;}
   if(!named.length&&!newUser){notify('端末名を設定してください。「利用者情報」から設定できます。','info','DEVICE-NAME-REMINDER');renderCard();return;}
   const d=ensureAssociationDialog();
   $('deviceAssociationGuideV14').textContent=named.length?'登録済み端末を引き継ぐ場合は該当する端末を選択してください。該当しない場合は新しい端末名を登録してください。':'初回利用のため、この端末の名前を設定してください。';
