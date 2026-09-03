@@ -1,7 +1,6 @@
 (function(){
   'use strict';
   const meta=window.TAXI_PAY_APP_META||{};
-  const isDevelop=String(location.pathname||'').includes('taxi-pay-pwa-develop');
   const PREFIX='taxi-pay-';
   const LAST_CACHE_VERSION_KEY='taxiPayLastAppliedCacheVersionV1';
   let reloading=false;
@@ -62,22 +61,29 @@
     return reg;
   }
 
+  function reloadForBuild(build){
+    const url=new URL(location.href);
+    url.searchParams.set('_appbuild',String(build||Date.now()));
+    location.replace(url.toString());
+  }
+
   async function applyCacheUpdate(){
     const button=document.getElementById('applyCacheUpdateV14');
     if(button){button.disabled=true;button.textContent='更新中…';}
     try{
       const latest=await fetchLatestMeta().catch(()=>meta);
+      await clearAppCaches();
       const reg=await ensureServiceWorker();
       if(reg?.waiting){
         await new Promise(resolve=>{
-          const timer=setTimeout(resolve,2500);
+          const timer=setTimeout(resolve,3000);
           navigator.serviceWorker.addEventListener('controllerchange',()=>{clearTimeout(timer);resolve();},{once:true});
           reg.waiting.postMessage({type:'SKIP_WAITING'});
         });
       }
       localStorage.setItem(LAST_CACHE_VERSION_KEY,String(latest.cacheVersion||meta.cacheVersion||''));
       hideUpdateBanner();
-      if(!reloading){reloading=true;location.reload();}
+      if(!reloading){reloading=true;reloadForBuild(latest.build||meta.build);}
     }catch(err){
       console.warn('cache update failed',err);
       const msg=document.getElementById('cacheUpdateTextV14');
@@ -91,11 +97,11 @@
       const latest=await fetchLatestMeta();
       const currentVersion=String(meta.cacheVersion||'');
       const latestVersion=String(latest.cacheVersion||'');
-      const applied=String(localStorage.getItem(LAST_CACHE_VERSION_KEY)||'');
-      if(latestVersion && applied!==latestVersion){
-        showUpdateBanner(`Build ${latest.build||meta.build||''} の更新があります。`);
-      }else if(latestVersion && currentVersion!==latestVersion){
+      if(latestVersion && currentVersion!==latestVersion){
         showUpdateBanner(`Build ${latest.build||''} の更新があります。`);
+      }else{
+        hideUpdateBanner();
+        if(latestVersion) localStorage.setItem(LAST_CACHE_VERSION_KEY,latestVersion);
       }
     }catch(err){
       console.warn('cache update check failed',err);
