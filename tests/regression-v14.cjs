@@ -112,15 +112,16 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
 {
   const p=DI.buildMergePlan(state([entry('1','2026-08-10',10000)]),state([entry('1','2026-08-10',20000)]));assert.throws(()=>DI.applyMergePlan(p,{},ctx),/未解決/);
 }
-// 21. Develop must keep Service Worker update flow and require explicit acknowledgement
+// 21. Develop must keep Service Worker update flow and use only explicit V2 acknowledgement
 {
   const ops=fs.readFileSync(path.join(__dirname,'..','phase75-ops.js'),'utf8');
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
   assert(!ops.includes('disableDevelopServiceWorkers'),'Develop must not unregister its Service Worker');
   assert(ops.includes('キャッシュ更新'),'visible cache update label is required');
   assert(ops.includes('serviceWorker.register'),'Develop must register the Service Worker');
-  assert(ops.includes('taxiPayPendingCacheVersionV1'),'explicit update must use a pending acknowledgement');
-  assert(!ops.includes('if(latestVersion) localStorage.setItem(LAST_CACHE_VERSION_KEY,latestVersion)'),'ordinary reload must not auto-acknowledge a build');
+  assert(ops.includes('taxiPayPendingCacheVersionV2'),'explicit update must use V2 pending acknowledgement');
+  assert(ops.includes('taxiPayLastExplicitCacheVersionV2'),'explicit update must use a dedicated V2 applied key');
+  assert(!ops.includes('taxiPayLastAppliedCacheVersionV1'),'legacy auto-acknowledgement must not influence current update state');
   assert(ops.includes('pending===latestVersion && currentVersion===pending'),'acknowledgement must complete only after the requested build loads');
   assert(sw.includes('SKIP_WAITING'),'Service Worker must support controlled activation');
 }
