@@ -15,13 +15,26 @@
     });
   });
 
+  // Develop environment marker: make the development build unmistakable
+  // without changing any payroll, storage, authentication, or backup behavior.
+  const header = document.querySelector('.app-header');
+  const headerTitle = header?.querySelector('.header-brand h1');
+  if (header) header.classList.add('develop-header');
+  if (headerTitle) headerTitle.textContent = 'Develop版 タクシー給与シミュレーター';
+
   // Phase 8: smartphone UI fixes.
-  // Keep pinch-to-zoom available for accessibility, while suppressing accidental
-  // double-tap zoom on the app's numeric keypad and making payroll-month
-  // navigation visually unambiguous on narrow screens.
   const style = document.createElement('style');
   style.id = 'phase8-smartphone-ui-fixes';
   style.textContent = `
+    .app-header.develop-header {
+      background: #c45100;
+      color: #fff;
+    }
+    .app-header.develop-header .header-brand h1,
+    .app-header.develop-header .header-brand p,
+    .app-header.develop-header .signed-in-user {
+      color: #fff;
+    }
     .tap-number-pad button,
     .tap-number-grid button,
     #tapBreakUnits button {
@@ -37,17 +50,9 @@
         min-height: 48px;
         font-size: 1rem;
       }
-      .month-navigation-card {
-        border-width: 2px;
-      }
-      .month-navigation-card .month-navigation-title {
-        text-align: center;
-        margin-bottom: 10px;
-      }
-      .month-navigation-card .month-navigation-title strong {
-        display: block;
-        font-size: 1.05rem;
-      }
+      .month-navigation-card { border-width: 2px; }
+      .month-navigation-card .month-navigation-title { text-align: center; margin-bottom: 10px; }
+      .month-navigation-card .month-navigation-title strong { display: block; font-size: 1.05rem; }
       .month-navigation-card .month-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -80,19 +85,10 @@
   `;
   document.head.appendChild(style);
 
-  // A browser may still synthesize dblclick on rapid taps. Cancelling it only
-  // inside the custom keypad prevents accidental page zoom without disabling
-  // normal browser zoom gestures elsewhere.
   document.addEventListener('dblclick', (event) => {
-    if (event.target.closest('.tap-number-pad, .tap-number-grid, #tapBreakUnits')) {
-      event.preventDefault();
-    }
+    if (event.target.closest('.tap-number-pad, .tap-number-grid, #tapBreakUnits')) event.preventDefault();
   }, { passive: false });
 
-  // Phase 8 UI: revenue-adjustment fields are optional. On a fresh entry,
-  // present them as blank instead of forcing the user to delete four zeroes.
-  // Calculation code already interprets blank as 0, so calculation/storage
-  // semantics remain unchanged. Existing entries opened for editing are left as-is.
   const revenueAdjustmentIds = ['idleA', 'idleB', 'otherPlus', 'otherMinus'];
   const clearFreshRevenueAdjustments = () => {
     const editingId = document.getElementById('editingId');
@@ -106,12 +102,8 @@
   requestAnimationFrame(clearFreshRevenueAdjustments);
   setTimeout(clearFreshRevenueAdjustments, 0);
 
-  document.getElementById('resetForm')?.addEventListener('click', () => {
-    setTimeout(clearFreshRevenueAdjustments, 0);
-  });
-  document.getElementById('entryForm')?.addEventListener('submit', () => {
-    setTimeout(clearFreshRevenueAdjustments, 0);
-  });
+  document.getElementById('resetForm')?.addEventListener('click', () => setTimeout(clearFreshRevenueAdjustments, 0));
+  document.getElementById('entryForm')?.addEventListener('submit', () => setTimeout(clearFreshRevenueAdjustments, 0));
 })();
 
 window.addEventListener('taxipay:profile',(event)=>{const el=document.getElementById('systemInfoMenuLink');if(el)el.hidden=event.detail?.isAdmin!==true;});
