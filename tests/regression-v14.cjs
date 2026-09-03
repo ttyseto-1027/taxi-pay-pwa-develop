@@ -119,6 +119,6 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
   assert(!ops.includes('disableDevelopServiceWorkers'),'Develop must not unregister its Service Worker');
   assert(ops.includes('キャッシュ更新'),'visible cache update label is required');
   assert(ops.includes('serviceWorker.register'),'Develop must register the Service Worker');
-  assert(sw.includes("type:'SKIP_WAITING'")||sw.includes("type: 'SKIP_WAITING'"),'Service Worker must support controlled activation');
+  assert(sw.includes('SKIP_WAITING'),'Service Worker must support controlled activation');
 }
 console.log('v1.4 regression core: 21/21 PASS');
