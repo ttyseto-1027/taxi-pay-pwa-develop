@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260903-phase8-mobile-refresh';
+const CACHE = 'taxi-pay-v1.4-beta-20260903-phase10-device-refresh';
 
 const FILES = [
   './',
@@ -18,6 +18,7 @@ const FILES = [
   './phase3-personal-settings.js',
   './phase4-payroll-adjustments.js',
   './phase7-ui.js',
+  './device-registry-v14.js',
   './admin.html',
   './announcement.html',
   './announcement-admin.js',
@@ -70,9 +71,10 @@ self.addEventListener('fetch', (event) => {
 
   const isNavigation = event.request.mode === 'navigate';
   const isRuntimeControlFile =
-    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|phase7-ui\.js|sw\.js)$/.test(url.pathname);
+    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|phase7-ui\.js|device-registry-v14\.js|sw\.js)$/.test(url.pathname);
 
-  // 更新判定に使うファイル、Phase 8 UI、HTMLナビゲーションは常にネットワーク優先・HTTPキャッシュ不使用。
+  // 更新判定に使うファイル、Phase 8/10 UI・端末識別、HTMLナビゲーションは
+  // 常にネットワーク優先・HTTPキャッシュ不使用。
   if (isNavigation || isRuntimeControlFile) {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
