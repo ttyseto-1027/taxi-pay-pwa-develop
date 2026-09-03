@@ -43,10 +43,12 @@ async function requireAssociationIfNeeded(){const user=auth.currentUser;if(!user
   if(!d.open)d.showModal();
 }
 async function recordBrowserUse(){const user=auth.currentUser;if(!user)return;const c=ctx(),ref=doc(db,'users',user.uid,'devices',c.deviceId),s=await getDoc(ref),old=s.data()||{},list=[...new Set([...(Array.isArray(old.browsers)?old.browsers:[]),c.browser].filter(Boolean))];await setDoc(ref,{...info(),deviceName:localStorage.getItem(NAME_KEY)||old.deviceName||'',browsers:list},{merge:true});}
-async function initialize(p){if(!p)return;await setupFirebase();const user=auth.currentUser;if(!user)return;if(initializedUid===user.uid){await listDevices();renderCard();return;}initializedUid=user.uid;profile=p;ensureProfileCard();await new Promise(r=>setTimeout(r,450));await listDevices();await recordBrowserUse().catch(()=>{});await listDevices();await requireAssociationIfNeeded();renderCard();}
+async function initialize(p){ensureProfileCard();if(!p)return;await setupFirebase();const user=auth.currentUser;if(!user)return;if(initializedUid===user.uid){await listDevices();renderCard();return;}initializedUid=user.uid;profile=p;await new Promise(r=>setTimeout(r,450));await listDevices();await recordBrowserUse().catch(()=>{});await listDevices();await requireAssociationIfNeeded();renderCard();}
 function installDriveGuards(){document.addEventListener('click',e=>{const target=e.target.closest?.('#driveSyncNow,#driveRefreshBackups,#restoreSafetyButton,[data-drive-restore],[data-drive-delete]');if(!target)return;if(hasNamedDevice())return;e.preventDefault();e.stopImmediatePropagation();requireNamedDevice();},true);}
 window.TaxiPayDeviceRegistry={hasNamedDevice,requireNamedDevice,getCurrent:()=>ctx(),list:()=>devices.map(x=>({...x})),saveName};
 installDriveGuards();
+ensureProfileCard();
+window.addEventListener('DOMContentLoaded',ensureProfileCard,{once:true});
 window.addEventListener('taxipay:profile',e=>initialize(e.detail).catch(err=>console.warn('device registry',err)));
 window.addEventListener('taxipay:app-ready',e=>initialize(e.detail).catch(err=>console.warn('device registry',err)));
 if(window.TaxiPayCurrentProfile)initialize(window.TaxiPayCurrentProfile).catch(err=>console.warn('device registry',err));
