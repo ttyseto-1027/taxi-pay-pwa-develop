@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260903-phase10-device-refresh';
+const CACHE = 'taxi-pay-v1.4-beta-20260904-phase10-cache-update-05';
 
 const FILES = [
   './',
@@ -19,6 +19,7 @@ const FILES = [
   './phase4-payroll-adjustments.js',
   './phase7-ui.js',
   './device-registry-v14.js',
+  './phase10-device-association-test.js',
   './admin.html',
   './announcement.html',
   './announcement-admin.js',
@@ -40,25 +41,13 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(FILES))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)));
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== CACHE)
-            .map((key) => caches.delete(key))
-        )
-      )
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -71,10 +60,8 @@ self.addEventListener('fetch', (event) => {
 
   const isNavigation = event.request.mode === 'navigate';
   const isRuntimeControlFile =
-    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|phase7-ui\.js|device-registry-v14\.js|sw\.js)$/.test(url.pathname);
+    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|phase7-ui\.js|device-registry-v14\.js|phase10-device-association-test\.js|sw\.js)$/.test(url.pathname);
 
-  // 更新判定に使うファイル、Phase 8/10 UI・端末識別、HTMLナビゲーションは
-  // 常にネットワーク優先・HTTPキャッシュ不使用。
   if (isNavigation || isRuntimeControlFile) {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
@@ -85,14 +72,11 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() =>
-          caches.match(event.request).then((response) => response || caches.match('./index.html'))
-        )
+        .catch(() => caches.match(event.request).then((response) => response || caches.match('./index.html')))
     );
     return;
   }
 
-  // その他の静的ファイルもネットワーク優先。
   event.respondWith(
     fetch(event.request, { cache: 'no-cache' })
       .then((response) => {
@@ -102,8 +86,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() =>
-        caches.match(event.request).then((response) => response || caches.match('./index.html'))
-      )
+      .catch(() => caches.match(event.request).then((response) => response || caches.match('./index.html')))
   );
 });
