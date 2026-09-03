@@ -3,6 +3,7 @@
   const meta=window.TAXI_PAY_APP_META||{};
   const PREFIX='taxi-pay-';
   const LAST_CACHE_VERSION_KEY='taxiPayLastAppliedCacheVersionV1';
+  const PENDING_CACHE_VERSION_KEY='taxiPayPendingCacheVersionV1';
   let reloading=false;
 
   async function clearAppCaches(){
@@ -72,6 +73,8 @@
     if(button){button.disabled=true;button.textContent='更新中…';}
     try{
       const latest=await fetchLatestMeta().catch(()=>meta);
+      const targetVersion=String(latest.cacheVersion||meta.cacheVersion||'');
+      if(targetVersion) localStorage.setItem(PENDING_CACHE_VERSION_KEY,targetVersion);
       await clearAppCaches();
       const reg=await ensureServiceWorker();
       if(reg?.waiting){
@@ -81,11 +84,11 @@
           reg.waiting.postMessage({type:'SKIP_WAITING'});
         });
       }
-      localStorage.setItem(LAST_CACHE_VERSION_KEY,String(latest.cacheVersion||meta.cacheVersion||''));
       hideUpdateBanner();
       if(!reloading){reloading=true;reloadForBuild(latest.build||meta.build);}
     }catch(err){
       console.warn('cache update failed',err);
+      localStorage.removeItem(PENDING_CACHE_VERSION_KEY);
       const msg=document.getElementById('cacheUpdateTextV14');
       if(msg) msg.textContent='更新に失敗しました。もう一度お試しください。';
       if(button){button.disabled=false;button.textContent='更新する';}
@@ -97,11 +100,28 @@
       const latest=await fetchLatestMeta();
       const currentVersion=String(meta.cacheVersion||'');
       const latestVersion=String(latest.cacheVersion||'');
-      if(latestVersion && currentVersion!==latestVersion){
+      const pending=String(localStorage.getItem(PENDING_CACHE_VERSION_KEY)||'');
+      let applied=String(localStorage.getItem(LAST_CACHE_VERSION_KEY)||'');
+
+      // 「更新する」を押した直後の再読込で、実際に対象Buildが読み込めた時だけ
+      // 明示更新済みとして確定する。通常のリロードではここに到達しない。
+      if(pending && pending===latestVersion && currentVersion===pending){
+        localStorage.setItem(LAST_CACHE_VERSION_KEY,pending);
+        localStorage.removeItem(PENDING_CACHE_VERSION_KEY);
+        applied=pending;
+      }
+
+      // 初回訪問でまだService Workerに制御されていない端末は、現在のBuildを基準値にする。
+      // 既存端末の通常リロードでは applied を書き換えない。
+      if(!applied && !pending && !navigator.serviceWorker?.controller && currentVersion && currentVersion===latestVersion){
+        localStorage.setItem(LAST_CACHE_VERSION_KEY,currentVersion);
+        applied=currentVersion;
+      }
+
+      if(latestVersion && applied!==latestVersion){
         showUpdateBanner(`Build ${latest.build||''} の更新があります。`);
       }else{
         hideUpdateBanner();
-        if(latestVersion) localStorage.setItem(LAST_CACHE_VERSION_KEY,latestVersion);
       }
     }catch(err){
       console.warn('cache update check failed',err);
