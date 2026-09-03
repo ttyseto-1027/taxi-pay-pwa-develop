@@ -104,6 +104,22 @@
 
   document.getElementById('resetForm')?.addEventListener('click', () => setTimeout(clearFreshRevenueAdjustments, 0));
   document.getElementById('entryForm')?.addEventListener('submit', () => setTimeout(clearFreshRevenueAdjustments, 0));
+
+  // Phase 10: device-registry-v14.js used a fixed old query string in index.html.
+  // If that old module failed to parse and therefore did not expose its API,
+  // load the corrected module with a fresh URL. This is intentionally a
+  // bootstrap only; it does not change device identity or user data.
+  const ensureFreshDeviceRegistry = async () => {
+    if (window.TaxiPayDeviceRegistry) return;
+    try {
+      await import('./device-registry-v14.js?v=20260903-02');
+      window.TaxiPayInlineDiagnostic?.add?.('PHASE10-DEVICE-REGISTRY-REFRESH','端末識別モジュールを最新版で再読み込みしました。');
+    } catch (error) {
+      window.TaxiPayInlineDiagnostic?.add?.('PHASE10-DEVICE-REGISTRY-FAIL','端末識別モジュールの再読み込みに失敗しました。',error);
+      console.warn('device registry refresh failed', error);
+    }
+  };
+  ensureFreshDeviceRegistry();
 })();
 
 window.addEventListener('taxipay:profile',(event)=>{const el=document.getElementById('systemInfoMenuLink');if(el)el.hidden=event.detail?.isAdmin!==true;});
