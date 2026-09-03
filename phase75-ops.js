@@ -2,8 +2,8 @@
   'use strict';
   const meta=window.TAXI_PAY_APP_META||{};
   const PREFIX='taxi-pay-';
-  const LAST_CACHE_VERSION_KEY='taxiPayLastAppliedCacheVersionV1';
-  const PENDING_CACHE_VERSION_KEY='taxiPayPendingCacheVersionV1';
+  const LAST_EXPLICIT_CACHE_VERSION_KEY='taxiPayLastExplicitCacheVersionV2';
+  const PENDING_CACHE_VERSION_KEY='taxiPayPendingCacheVersionV2';
   let reloading=false;
 
   async function clearAppCaches(){
@@ -101,20 +101,20 @@
       const currentVersion=String(meta.cacheVersion||'');
       const latestVersion=String(latest.cacheVersion||'');
       const pending=String(localStorage.getItem(PENDING_CACHE_VERSION_KEY)||'');
-      let applied=String(localStorage.getItem(LAST_CACHE_VERSION_KEY)||'');
+      let applied=String(localStorage.getItem(LAST_EXPLICIT_CACHE_VERSION_KEY)||'');
 
       // 「更新する」を押した直後の再読込で、実際に対象Buildが読み込めた時だけ
-      // 明示更新済みとして確定する。通常のリロードではここに到達しない。
+      // 明示更新済みとして確定する。旧V1の自動記録は参照しない。
       if(pending && pending===latestVersion && currentVersion===pending){
-        localStorage.setItem(LAST_CACHE_VERSION_KEY,pending);
+        localStorage.setItem(LAST_EXPLICIT_CACHE_VERSION_KEY,pending);
         localStorage.removeItem(PENDING_CACHE_VERSION_KEY);
         applied=pending;
       }
 
-      // 初回訪問でまだService Workerに制御されていない端末は、現在のBuildを基準値にする。
-      // 既存端末の通常リロードでは applied を書き換えない。
+      // 完全な初回訪問でService Workerにも未制御なら、現在Buildを初期基準値にする。
+      // 既存端末では旧V1記録を移行せず、必ず一度明示更新を要求する。
       if(!applied && !pending && !navigator.serviceWorker?.controller && currentVersion && currentVersion===latestVersion){
-        localStorage.setItem(LAST_CACHE_VERSION_KEY,currentVersion);
+        localStorage.setItem(LAST_EXPLICIT_CACHE_VERSION_KEY,currentVersion);
         applied=currentVersion;
       }
 
