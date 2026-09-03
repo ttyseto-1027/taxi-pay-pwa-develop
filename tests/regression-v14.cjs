@@ -1,5 +1,7 @@
 'use strict';
 const assert=require('assert');
+const fs=require('fs');
+const path=require('path');
 const DI=require('../data-integrity-v14.js');
 const baseSettings={shiftType:'隔日勤務',residentTax:0};
 const entry=(id,date,gross=10000,extra={})=>({id,date,paidLeaveUnits:0,grossSales:gross,adjustedGrossSales:gross,grossRevenue:gross,clockIn:'10:00',clockOut:'20:00',normalBreakMinutes:60,nightBreakMinutes:0,holidayType:'normal',hadAccident:false,hadViolation:false,...extra});
@@ -44,8 +46,6 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
 // 7. identical same-date different ID is deduplicated
 {
   const a=entry('1','2026-08-10'),b={...a,id:'2'};
-  // IDs are data identity and therefore differ semantically; simulate rescued duplicate by removing ids for content comparison is NOT desired.
-  // Same content with a different ID on the same date is intentionally treated as a user-visible conflict, preventing silent loss.
   const p=DI.buildMergePlan(state([a]),state([b]));assert.equal(p.conflicts.length,1);
 }
 // 8. same ID content difference is a conflict and remote winner archives local
@@ -112,4 +112,13 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
 {
   const p=DI.buildMergePlan(state([entry('1','2026-08-10',10000)]),state([entry('1','2026-08-10',20000)]));assert.throws(()=>DI.applyMergePlan(p,{},ctx),/未解決/);
 }
-console.log('v1.4 regression core: 20/20 PASS');
+// 21. Develop must keep Service Worker update flow and visible cache update control
+{
+  const ops=fs.readFileSync(path.join(__dirname,'..','phase75-ops.js'),'utf8');
+  const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
+  assert(!ops.includes('disableDevelopServiceWorkers'),'Develop must not unregister its Service Worker');
+  assert(ops.includes('キャッシュ更新'),'visible cache update label is required');
+  assert(ops.includes('serviceWorker.register'),'Develop must register the Service Worker');
+  assert(sw.includes("type:'SKIP_WAITING'")||sw.includes("type: 'SKIP_WAITING'"),'Service Worker must support controlled activation');
+}
+console.log('v1.4 regression core: 21/21 PASS');
