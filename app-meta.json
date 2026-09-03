@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260904-01",
-  "cacheVersion": "develop-no-sw-20260904-phase10",
-  "releasedAtJst": "2026/09/04 01:02:00 JST",
+  "build": "20260904-02",
+  "cacheVersion": "develop-no-sw-20260904-phase10-02",
+  "releasedAtJst": "2026/09/04 01:45:00 JST",
   "environment": "DEVELOP"
 }
