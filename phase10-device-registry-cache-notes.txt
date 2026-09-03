@@ -1,0 +1,1 @@
+Phase 10 cache refresh note: device-registry-v14.js must use a fresh query version in index.html and be network-first/no-store in sw.js so smartphones do not retain the pre-fix module.
