@@ -90,7 +90,7 @@
   }
   function normalizeBeforeSave(previous,next,reason='app-save',ctx={}){
     const prev=ensureState(previous||{}),out=ensureState(next||{});
-    ['dataArchive','conflictHistory','deletionHistory','recordTombstones'].forEach(k=>{if(!Array.isArray(next?.[k])||next[k].length===0){const existing=prev[k]||[];if(existing.length)out[k]=clone(existing);}});
+    ['dataArchive','conflictHistory','deletionHistory','recordTombstones'].forEach(k=>{if(!Array.isArray(next?.[k])){const existing=prev[k]||[];if(existing.length)out[k]=clone(existing);}});
     const prevById=new Map(prev.entries.filter(x=>x?.id).map(x=>[x.id,x]));
     out.entries=out.entries.map(e=>decorateEntry(e,prevById.get(e.id),ctx));
     const activeIds=new Set(out.entries.map(x=>x?.id).filter(Boolean));
