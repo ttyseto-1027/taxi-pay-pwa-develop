@@ -50,7 +50,7 @@ const entry = { id:'e1', date:'2026-09-01', grossSales:50000, grossRevenue:50000
   assert.ok(merged.conflictHistory.some(h=>h.conflictId===conflict.id && h.selected==='local'));
 }
 
-// 4. Choosing the live side restores it to active data while retaining the deletion history source.
+// 4. Choosing the live side restores it to active data and clears the deletion tombstone.
 {
   const deleted = DI.ensureState({ entries:[], recordTombstones:[{entryId:'e1',workDate:'2026-09-01',deletedAtJst:'2026-09-02T00:00:00+09:00'}] });
   const live = DI.ensureState({ entries:[entry] });
@@ -58,10 +58,22 @@ const entry = { id:'e1', date:'2026-09-01', grossSales:50000, grossRevenue:50000
   const conflict = plan.conflicts.find(x=>x.type==='entry-delete');
   const merged = DI.applyMergePlan(plan, {[conflict.id]:'remote'}, ctx);
   assert.ok(merged.entries.some(e=>e.id==='e1'));
-  assert.ok(merged.recordTombstones.some(t=>t.entryId==='e1'));
+  assert.equal(merged.recordTombstones.some(t=>t.entryId==='e1'), false);
 }
 
-// 5. Permanent deletion removes only archive payloads and leaves a content-free audit record.
+// 5. The inverse conflict must also clear the imported tombstone when the live local record is kept.
+{
+  const localLive = DI.ensureState({ entries:[entry] });
+  const remoteDeleted = DI.ensureState({ entries:[], recordTombstones:[{entryId:'e1',workDate:'2026-09-01',deletedAtJst:'2026-09-02T00:00:00+09:00'}] });
+  const plan = DI.buildMergePlan(localLive, remoteDeleted);
+  const conflict = plan.conflicts.find(x=>x.type==='delete-entry');
+  assert.ok(conflict, 'delete-entry conflict must exist');
+  const merged = DI.applyMergePlan(plan, {[conflict.id]:'local'}, ctx);
+  assert.ok(merged.entries.some(e=>e.id==='e1'));
+  assert.equal(merged.recordTombstones.some(t=>t.entryId==='e1'), false);
+}
+
+// 6. Permanent deletion removes only archive payloads and leaves a content-free audit record.
 {
   const s = DI.ensureState({ dataArchive:[{
     archiveId:'a1', kind:'entry', sourceId:'e1', workDate:'2026-09-01',
@@ -79,7 +91,7 @@ const entry = { id:'e1', date:'2026-09-01', grossSales:50000, grossRevenue:50000
   assert.equal(JSON.stringify(audit).includes('private payroll data'), false);
 }
 
-// 6. Permanent deletion must be selective and idempotent for unknown IDs.
+// 7. Permanent deletion must be selective and idempotent for unknown IDs.
 {
   const s = DI.ensureState({ dataArchive:[
     {archiveId:'a1',kind:'entry',sourceId:'e1',workDate:'2026-09-01',data:entry},
@@ -90,7 +102,7 @@ const entry = { id:'e1', date:'2026-09-01', grossSales:50000, grossRevenue:50000
   assert.deepEqual(out.deletionHistory.map(x=>x.archiveId), ['a1']);
 }
 
-// 7. An explicitly empty integrity array must remain empty after normalization.
+// 8. An explicitly empty integrity array must remain empty after normalization.
 // This protects the last archive from reappearing after permanent deletion or restoration.
 {
   const prev = DI.ensureState({
