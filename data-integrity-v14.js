@@ -165,9 +165,17 @@
           for(const l of c.local){addArchive(out,'entry',l,'same-date-conflict-loser',ctx,{sourceId:l.id,workDate:c.date});out.entries=out.entries.filter(x=>x.id!==l.id);}out.entries.push(clone(c.remote));
         }else addArchive(out,'entry',c.remote,'same-date-conflict-loser',ctx,{sourceId:c.remote?.id,workDate:c.date});
       }else if(c.type==='entry-delete'){
-        if(mode==='remote'){out.entries.push(clone(c.remote));}else addArchive(out,'entry',c.remote,'deleted-state-selected',ctx,{sourceId:c.remote?.id,workDate:c.date});
+        if(mode==='remote'){
+          out.entries.push(clone(c.remote));
+          out.recordTombstones=out.recordTombstones.filter(x=>x.entryId!==c.remote?.id);
+        }else addArchive(out,'entry',c.remote,'deleted-state-selected',ctx,{sourceId:c.remote?.id,workDate:c.date});
       }else if(c.type==='delete-entry'){
-        if(mode==='remote'){addArchive(out,'entry',c.local,'deleted-state-selected',ctx,{sourceId:c.local?.id,workDate:c.date});out.entries=out.entries.filter(x=>x.id!==c.local.id);} 
+        if(mode==='remote'){
+          addArchive(out,'entry',c.local,'deleted-state-selected',ctx,{sourceId:c.local?.id,workDate:c.date});
+          out.entries=out.entries.filter(x=>x.id!==c.local.id);
+        }else{
+          out.recordTombstones=out.recordTombstones.filter(x=>x.entryId!==c.local?.id);
+        }
       }else if(c.type==='setting'){
         if(mode==='remote')out.settings[c.field]=clone(c.remote);else if(mode==='fields')out.settings[c.field]=clone(choice.fields?.[c.field]==='remote'?c.remote:c.local);
         addArchive(out,'setting',{field:c.field,value:clone(mode==='remote'?c.local:c.remote)},'setting-conflict-loser',ctx,{sourceId:c.field});
