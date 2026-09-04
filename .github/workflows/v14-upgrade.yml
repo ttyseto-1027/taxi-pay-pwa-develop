@@ -22,6 +22,7 @@ jobs:
         run: |
           node --check data-integrity-v14.js
           node --check data-recovery-v14.js
+          node --check phase11-archive-restore.js
           node --check device-registry-v14.js
           node --check storage-safety.js
           node --check phase56-drive-backup.js
@@ -30,6 +31,7 @@ jobs:
           node --check phase7-ui.js
           node --check app.js
           node --check diagnostics.js
+          node --check boot.js
       - name: Regression tests
         run: |
           node tests/regression-v14.cjs
@@ -41,6 +43,7 @@ jobs:
           grep -q 'data-integrity-v14.js' index.html
           grep -q 'data-recovery-v14.js' index.html
           grep -q 'device-registry-v14.js' index.html
+          grep -q 'phase11-archive-restore.js' boot.js
           grep -q 'STORAGE.save(state' app.js
           grep -q 'normalizeBeforeSave' storage-safety.js
           grep -q 'phase8-smartphone-ui-fixes' phase7-ui.js
