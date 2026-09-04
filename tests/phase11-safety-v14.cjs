@@ -90,4 +90,24 @@ const entry = { id:'e1', date:'2026-09-01', grossSales:50000, grossRevenue:50000
   assert.deepEqual(out.deletionHistory.map(x=>x.archiveId), ['a1']);
 }
 
+// 7. An explicitly empty integrity array must remain empty after normalization.
+// This protects the last archive from reappearing after permanent deletion or restoration.
+{
+  const prev = DI.ensureState({
+    entries:[],
+    dataArchive:[{archiveId:'a1',kind:'entry',sourceId:'e1',workDate:'2026-09-01',data:entry}],
+    conflictHistory:[{conflictId:'c1'}],
+    deletionHistory:[{archiveId:'old'}],
+    recordTombstones:[{entryId:'e1'}]
+  });
+  const next = DI.normalizeBeforeSave(prev, {
+    entries:[], settings:{}, history:[],
+    dataArchive:[], conflictHistory:[], deletionHistory:[], recordTombstones:[]
+  }, 'archive-restore', ctx);
+  assert.deepEqual(next.dataArchive, []);
+  assert.deepEqual(next.conflictHistory, []);
+  assert.deepEqual(next.deletionHistory, []);
+  assert.deepEqual(next.recordTombstones, []);
+}
+
 console.log('Phase 11 safety regression: SUCCESS');
