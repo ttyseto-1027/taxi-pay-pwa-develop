@@ -35,6 +35,7 @@ jobs:
           node tests/regression-v14.cjs
           node tests/regression-storage-v14.cjs
           node tests/phase10-safety-v14.cjs
+          node tests/phase11-safety-v14.cjs
       - name: Static integration guards
         run: |
           grep -q 'data-integrity-v14.js' index.html
