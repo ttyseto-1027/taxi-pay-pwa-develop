@@ -2,6 +2,17 @@
   'use strict';
   const D=window.TaxiPayDiagnostics;
   const I=window.TaxiPayInlineDiagnostic; I?.add('V17-BOOT-001','boot.js を開始しました。');
+
+  // Phase 11: data-recovery-v14.js の後段で、退避データ復元UIだけを追加する。
+  // 認証処理とは独立しており、読み込み失敗時もログイン処理は継続する。
+  try{
+    const phase11=document.createElement('script');
+    phase11.src='phase11-archive-restore.js?v=20260905-01';
+    phase11.async=true;
+    phase11.onerror=()=>I?.add('PHASE11-LOAD-FAIL','Phase 11退避復元モジュールを読み込めませんでした。');
+    document.head.appendChild(phase11);
+  }catch(e){I?.add('PHASE11-LOAD-FAIL','Phase 11退避復元モジュールの読み込み準備に失敗しました。',e);}
+
   const button=document.getElementById('googleLoginButton');
   const msg=document.getElementById('authMessage');
   if(button) button.disabled=true;
