@@ -25,9 +25,14 @@
       if(typeof resolver!=='function')throw new Error('競合比較機能を利用できません。');
       const result=await resolver(state,remote,{local:'現在の有効データ',remote:'退避データ'});
       if(!result)return null;
-      return result.state;
+      const usedRemote=Object.values(result.choices||{}).some(choice=>{
+        if(choice==='remote')return true;
+        if(choice&&typeof choice==='object'&&choice.mode==='fields')return Object.values(choice.fields||{}).some(side=>side==='remote');
+        return false;
+      });
+      return {state:result.state,action:usedRemote?'restore':'keep-current'};
     }
-    return DI().applyMergePlan(plan,{},DI().deviceContext());
+    return {state:DI().applyMergePlan(plan,{},DI().deviceContext()),action:'restore'};
   }
 
   function enhanceArchiveUI(){
@@ -51,8 +56,9 @@
       try{
         const state=currentState(),archive=findArchive(state,ids[0]);
         if(!archive)throw new Error('選択した退避データが見つかりません。');
-        const restored=await resolveArchiveRestore(state,archive);
-        if(!restored){if(message)message.textContent='復元をキャンセルしました。';return;}
+        const resolved=await resolveArchiveRestore(state,archive);
+        if(!resolved){if(message)message.textContent='復元をキャンセルしました。';return;}
+        const restored=resolved.state;
         const currentRaw=STORAGE().getPrimaryRaw();
         if(currentRaw!==beforeRaw)throw new Error('確認中に端末データが変更されました。一覧を更新してやり直してください。');
         restored.conflictHistory=Array.isArray(restored.conflictHistory)?restored.conflictHistory:[];
@@ -61,13 +67,15 @@
           type:'archive-restore',
           targetDate:archive.workDate||archive.data?.date||'',
           resolvedAtJst:DI().jstNow(),
-          selected:'restore',
+          selected:resolved.action,
           deviceId:DI().deviceId(),
           deviceName:DI().deviceName(),
           browser:DI().browserName()
         });
         STORAGE().save(restored,'archive-restore');
-        if(message)message.textContent='退避データを復元しました。元の退避データは安全のため残しています。';
+        if(message)message.textContent=resolved.action==='restore'
+          ?'退避データを復元しました。元の退避データは安全のため残しています。'
+          :'現在の有効データを維持しました。退避データもそのまま残しています。';
         const refresh=$('v14ArchiveRefresh');if(refresh)refresh.click();
       }catch(e){if(message)message.textContent=`復元できませんでした。${e.message||e}`;}
     };
