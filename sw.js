@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20260918-phase11-02';
+const CACHE = 'taxi-pay-v1.4-beta-20260918-phase11-03';
 
 const FILES = [
   './',
@@ -8,6 +8,7 @@ const FILES = [
   './data-integrity-v14.js',
   './data-recovery-v14.js',
   './phase11-archive-restore.js',
+  './phase11-live-test.js',
   './app.js',
   './tax-table-2026.js',
   './manifest.json',
@@ -63,7 +64,7 @@ self.addEventListener('fetch', (event) => {
 
   const isNavigation = event.request.mode === 'navigate';
   const isRuntimeControlFile =
-    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|phase7-ui\.js|device-registry-v14\.js|phase10-device-association-test\.js|phase11-archive-restore\.js|sw\.js)$/.test(url.pathname);
+    /\/(?:app-meta\.js|app-meta\.json|phase75-ops\.js|phase7-ui\.js|device-registry-v14\.js|phase10-device-association-test\.js|phase11-archive-restore\.js|phase11-live-test\.js|sw\.js)$/.test(url.pathname);
 
   if (isNavigation || isRuntimeControlFile) {
     event.respondWith(

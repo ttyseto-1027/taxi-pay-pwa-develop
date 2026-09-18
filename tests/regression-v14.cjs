@@ -155,7 +155,18 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
   assert(ui.includes("action:usedRemote?'restore':'keep-current'"),'restore flow must distinguish a real restore from keeping current data');
   assert(ui.includes('現在の有効データを維持しました。退避データもそのまま残しています。'),'keep-current choice must not be reported as restored');
 }
-// 25. Develop must keep Service Worker update flow and use only explicit V2 acknowledgement
+// 25. Phase 11 live test is explicit, Develop-only, and isolated by dedicated IDs
+{
+  const ui=fs.readFileSync(path.join(__dirname,'..','phase11-live-test.js'),'utf8');
+  const phase7=fs.readFileSync(path.join(__dirname,'..','phase7-ui.js'),'utf8');
+  assert(ui.includes("get('phase11Test')!=='1'"),'live test must require explicit query parameter');
+  assert(ui.includes("if(!STORAGE()?.isDevelop)return"),'live test must be Develop-only');
+  assert(ui.includes("TEST_ID='phase11-live-test-entry-v1'"),'live test must use a dedicated entry ID');
+  assert(ui.includes("TEST_DATE='2099-12-31'"),'live test must use an isolated future work date');
+  assert(ui.includes("filter(e=>e?.id!==TEST_ID)"),'cleanup must target only the dedicated test entry');
+  assert(phase7.includes("get('phase11Test') === '1'"),'normal app load must not load Phase 11 live test');
+}
+// 26. Develop must keep Service Worker update flow and use only explicit V2 acknowledgement
 {
   const ops=fs.readFileSync(path.join(__dirname,'..','phase75-ops.js'),'utf8');
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
@@ -168,4 +179,4 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
   assert(ops.includes('pending===latestVersion && currentVersion===pending'),'acknowledgement must complete only after the requested build loads');
   assert(sw.includes('SKIP_WAITING'),'Service Worker must support controlled activation');
 }
-console.log('v1.4 regression core: 25/25 PASS');
+console.log('v1.4 regression core: 26/26 PASS');

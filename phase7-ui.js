@@ -124,6 +124,13 @@
   // Phase 10 validation only: an explicit query parameter loads a
   // non-destructive association-flow simulator. It never changes device
   // identity, local storage, Firestore, payroll data, or Drive data.
+  if (new URLSearchParams(location.search).get('phase11Test') === '1') {
+    const testScript = document.createElement('script');
+    testScript.src = './phase11-live-test.js?v=20260918-01';
+    testScript.dataset.phase11Test = '1';
+    document.head.appendChild(testScript);
+  }
+
   if (new URLSearchParams(location.search).get('phase10DeviceTest') === '1') {
     const testScript = document.createElement('script');
     testScript.src = './phase10-device-association-test.js?v=20260904-01';
