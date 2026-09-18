@@ -149,6 +149,11 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
   assert(ui.includes('元の退避データは安全のため残しています'),'UI must tell the user that the archive remains');
   const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
   assert(html.includes('phase11-archive-restore.js'),'Phase 11 archive restore UI must actually be loaded by index.html');
+  assert(html.includes('data-view="settings" type="button"><span>バックアップ</span>'),'user-facing menu name must remain バックアップ');
+  const recovery=fs.readFileSync(path.join(__dirname,'..','data-recovery-v14.js'),'utf8');
+  assert(recovery.includes('const backupPanel=document.querySelector(\'[data-view-panel="settings"]\')'),'internal settings view id must be treated as the Backup panel');
+  assert(ui.includes("action:usedRemote?'restore':'keep-current'"),'restore flow must distinguish a real restore from keeping current data');
+  assert(ui.includes('現在の有効データを維持しました。退避データもそのまま残しています。'),'keep-current choice must not be reported as restored');
 }
 // 25. Develop must keep Service Worker update flow and use only explicit V2 acknowledgement
 {
