@@ -147,6 +147,8 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
   assert(ui.includes('buildArchiveRestorePlan'),'archive restore must use the conflict-aware restore planner');
   assert(!ui.includes("filter(a=>a.archiveId!==archive.archiveId)"),'restore must never auto-delete the source archive');
   assert(ui.includes('元の退避データは安全のため残しています'),'UI must tell the user that the archive remains');
+  const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+  assert(html.includes('phase11-archive-restore.js'),'Phase 11 archive restore UI must actually be loaded by index.html');
 }
 // 25. Develop must keep Service Worker update flow and use only explicit V2 acknowledgement
 {
