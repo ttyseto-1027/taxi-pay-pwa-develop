@@ -14,16 +14,12 @@
   function findArchive(state,id){return (state.dataArchive||[]).find(a=>a.archiveId===id)||null;}
 
   function makeRestoreState(state,archive){
-    if(!archive||archive.kind!=='entry'||!archive.data||typeof archive.data!=='object')throw new Error('この退避データは勤務実績として復元できません。');
-    const entry=JSON.parse(JSON.stringify(archive.data));
-    if(!entry.id)throw new Error('退避データに勤務実績IDがありません。');
-    const remote=DI().ensureState({entries:[entry],settings:state.settings||{},history:[]});
-    return {entry,remote};
+    const built=DI().buildArchiveRestorePlan(state,archive?.archiveId);
+    return {archive:built.archive,remote:built.remote,plan:built.plan};
   }
 
   async function resolveArchiveRestore(state,archive){
-    const {entry,remote}=makeRestoreState(state,archive);
-    const plan=DI().buildMergePlan(state,remote);
+    const {remote,plan}=makeRestoreState(state,archive);
     if(plan.conflicts.length){
       const resolver=window.TaxiPayRecoveryV14?.resolveStates;
       if(typeof resolver!=='function')throw new Error('競合比較機能を利用できません。');
@@ -31,11 +27,7 @@
       if(!result)return null;
       return result.state;
     }
-    const exists=(state.entries||[]).some(e=>e.id===entry.id);
-    if(exists)return state;
-    const out=DI().ensureState(state);
-    out.entries.push(entry);
-    return out;
+    return DI().applyMergePlan(plan,{},DI().deviceContext());
   }
 
   function enhanceArchiveUI(){
@@ -59,13 +51,10 @@
       try{
         const state=currentState(),archive=findArchive(state,ids[0]);
         if(!archive)throw new Error('選択した退避データが見つかりません。');
-        if(archive.kind!=='entry')throw new Error('現在は勤務実績の退避データのみ復元できます。');
         const restored=await resolveArchiveRestore(state,archive);
         if(!restored){if(message)message.textContent='復元をキャンセルしました。';return;}
         const currentRaw=STORAGE().getPrimaryRaw();
         if(currentRaw!==beforeRaw)throw new Error('確認中に端末データが変更されました。一覧を更新してやり直してください。');
-        const kept=(restored.dataArchive||[]).filter(a=>a.archiveId!==archive.archiveId);
-        restored.dataArchive=kept;
         restored.conflictHistory=Array.isArray(restored.conflictHistory)?restored.conflictHistory:[];
         restored.conflictHistory.push({
           conflictId:`archive-restore:${archive.archiveId}`,
@@ -78,7 +67,7 @@
           browser:DI().browserName()
         });
         STORAGE().save(restored,'archive-restore');
-        if(message)message.textContent='退避データを有効な勤務実績へ復元しました。';
+        if(message)message.textContent='退避データを復元しました。元の退避データは安全のため残しています。';
         const refresh=$('v14ArchiveRefresh');if(refresh)refresh.click();
       }catch(e){if(message)message.textContent=`復元できませんでした。${e.message||e}`;}
     };
