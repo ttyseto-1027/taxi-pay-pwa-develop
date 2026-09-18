@@ -122,4 +122,16 @@ const entry = { id:'e1', date:'2026-09-01', grossSales:50000, grossRevenue:50000
   assert.deepEqual(next.recordTombstones, []);
 }
 
+// 9. Archive UI must expose human-readable identity without changing archive payloads.
+{
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const ui = fs.readFileSync(path.join(__dirname,'..','data-recovery-v14.js'),'utf8');
+  assert.ok(ui.includes("ARCHIVE_KIND_LABELS={entry:'勤務実績'"));
+  assert.ok(ui.includes("'conflict-loser':'競合で非採用'"));
+  assert.ok(ui.includes("['grossRevenue','adjustedGrossSales','grossSales']"));
+  assert.ok(ui.includes("営収 "));
+  assert.ok(ui.includes("const d=archiveDisplay(a)"));
+}
+
 console.log('Phase 11 safety regression: SUCCESS');

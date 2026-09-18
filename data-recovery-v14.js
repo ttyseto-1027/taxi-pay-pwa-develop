@@ -20,6 +20,41 @@
     const raw=STORAGE()?.getPrimaryRaw();if(!raw){const loaded=STORAGE()?.loadCandidate();return DI().ensureState(loaded?.data||{});}try{return DI().ensureState(JSON.parse(raw));}catch{throw new Error('現在の端末データを安全に解析できません。');}
   }
   function diffSummary(c){return c.diffs.map(d=>LABELS[d.field]||d.field).join('・')||'内容';}
+  const ARCHIVE_KIND_LABELS={entry:'勤務実績',setting:'設定',history:'締め履歴'};
+  const ARCHIVE_REASON_LABELS={
+    'conflict-loser':'競合で非採用',
+    'same-date-conflict-loser':'同一勤務日の競合で非採用',
+    'field-merge-source-local':'項目別統合元（現在側）',
+    'field-merge-source-remote':'項目別統合元（比較先）',
+    'deleted-state-selected':'削除状態を採用したため退避',
+    'active-record-removed':'有効データから削除されたため退避',
+    'setting-conflict-loser':'設定競合で非採用',
+    'history-conflict-loser':'締め履歴競合で非採用',
+    'phase11-live-test-fixture':'Phase 11実機テスト'
+  };
+  function archiveRevenue(a){
+    if(a?.kind!=='entry')return null;
+    const d=a.data||{};
+    for(const k of ['grossRevenue','adjustedGrossSales','grossSales']){
+      if(d[k]!==undefined&&d[k]!==null&&d[k]!==''&&Number.isFinite(Number(d[k])))return Number(d[k]);
+    }
+    return null;
+  }
+  function archiveDisplay(a){
+    const kind=ARCHIVE_KIND_LABELS[a?.kind]||String(a?.kind||'退避データ');
+    const reason=ARCHIVE_REASON_LABELS[a?.reason]||String(a?.reason||'理由不明');
+    let title=String(a?.workDate||a?.sourceId||kind);
+    const revenue=archiveRevenue(a);
+    if(revenue!==null)title+=`　営収 ${revenue.toLocaleString('ja-JP')}円`;
+    if(a?.kind==='setting'){
+      const field=String(a?.data?.field||a?.sourceId||'');
+      if(field)title=`設定：${LABELS[field]||field}`;
+    }else if(a?.kind==='history'){
+      const month=String(a?.data?.month||a?.sourceId||'');
+      if(month)title=`締め履歴：${month}`;
+    }
+    return{title,kind,reason,archivedAt:String(a?.archivedAtJst||'')};
+  }
   function ensureDialog(){
     let d=$('v14ConflictDialog');if(d)return d;
     d=document.createElement('dialog');d.id='v14ConflictDialog';d.className='modal v14-conflict-dialog';d.innerHTML='<form method="dialog"><div class="modal-title-row"><h2 id="v14ConflictTitle">競合内容</h2><button class="icon-button" value="cancel" aria-label="閉じる">×</button></div><div id="v14ConflictBody"></div><div class="actions"><button type="button" id="v14ChooseLocal">この端末側を採用</button><button type="button" id="v14ChooseRemote" class="secondary">比較先を採用</button><button type="button" id="v14FieldMode" class="ghost">項目ごとに選ぶ</button></div><div id="v14FieldChoices" hidden></div></form>';document.body.appendChild(d);return d;
@@ -59,7 +94,7 @@
     $('v14RecoveryDownload').onclick=()=>{if(backup)download(backupName,backup);};
     $('v14RecoveryConfirm').onchange=()=>{$('v14RecoveryApply').disabled=!($('v14RecoveryConfirm').checked&&backup&&ready());};
     $('v14RecoveryApply').onclick=()=>{let wrote=false;try{if(!backup||!ready())throw new Error('バックアップと競合確認を完了してください。');if(STORAGE().getPrimaryRaw()!==beforeRaw)throw new Error('比較後に端末データが変更されました。もう一度確認してください。');const merged=DI().applyMergePlan(plan,choices,DI().deviceContext());STORAGE().save(merged,'manual-recovery-merge');wrote=true;const check=JSON.parse(STORAGE().getPrimaryRaw()||'{}');if(!Array.isArray(check.entries)||!Array.isArray(check.dataArchive))throw new Error('統合後の検証に失敗しました。');$('v14RecoveryMessage').textContent=`統合が完了しました。現在 ${check.entries.length}件、退避 ${check.dataArchive.length}件です。`;renderArchive();}catch(e){if(wrote){try{if(beforeRaw===null)localStorage.removeItem(STORAGE().primaryKey);else localStorage.setItem(STORAGE().primaryKey,beforeRaw);}catch{}}$('v14RecoveryMessage').textContent=`統合に失敗しました。${e.message||e}`;}};
-    function renderArchive(){let s;try{s=currentState();}catch(e){$('v14ArchiveMessage').textContent=e.message;return;}const rows=s.dataArchive||[];$('v14ArchiveSummary').textContent=`退避データ：${rows.length}件`;$('v14ArchiveList').innerHTML=rows.length?rows.slice().reverse().map(a=>`<label class="v14-archive-row"><input type="checkbox" data-v14-archive="${esc(a.archiveId)}"><span><strong>${esc(a.workDate||a.sourceId||a.kind)}</strong><small>${esc(a.kind)} / ${esc(a.reason)} / ${esc(a.archivedAtJst||'')}</small></span></label>`).join(''):'<p class="note">退避データはありません。</p>';}
+    function renderArchive(){let s;try{s=currentState();}catch(e){$('v14ArchiveMessage').textContent=e.message;return;}const rows=s.dataArchive||[];$('v14ArchiveSummary').textContent=`退避データ：${rows.length}件`;$('v14ArchiveList').innerHTML=rows.length?rows.slice().reverse().map(a=>{const d=archiveDisplay(a);return `<label class="v14-archive-row"><input type="checkbox" data-v14-archive="${esc(a.archiveId)}"><span><strong>${esc(d.title)}</strong><small>${esc(d.kind)} / ${esc(d.reason)} / ${esc(d.archivedAt)}</small></span></label>`;}).join(''):'<p class="note">退避データはありません。</p>';}
     $('v14ArchiveRefresh').onclick=renderArchive;$('v14ArchiveDelete').onclick=()=>{const ids=[...document.querySelectorAll('[data-v14-archive]:checked')].map(x=>x.dataset.v14Archive);if(!ids.length){$('v14ArchiveMessage').textContent='削除する退避データを選択してください。';return;}if(!confirm(`${ids.length}件の退避データを完全削除します。データ本体は復元できなくなります。続行しますか？`))return;try{const s=DI().permanentlyDeleteArchives(currentState(),ids,DI().deviceContext());STORAGE().save(s,'archive-permanent-delete');$('v14ArchiveMessage').textContent='選択した退避データを完全削除しました。削除記録のみ保持します。';renderArchive();}catch(e){$('v14ArchiveMessage').textContent=e.message||String(e);}};
     renderArchive();
   }
