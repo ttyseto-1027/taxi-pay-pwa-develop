@@ -7,7 +7,6 @@
   const $=id=>document.getElementById(id);
   const DI=()=>window.TaxiPayDataIntegrity;
   const STORAGE=()=>window.TaxiPayStorageSafety;
-  const clone=x=>JSON.parse(JSON.stringify(x));
 
   function state(){
     const raw=STORAGE()?.getPrimaryRaw();
@@ -26,7 +25,7 @@
     s.dataArchive.push({archiveId:ARCHIVE_ID,kind:'entry',sourceId:TEST_ID,workDate:TEST_DATE,
       archivedAtJst:DI().jstNow(),reason:'phase11-live-test-fixture',deviceId:DI().deviceId(),
       deviceName:DI().deviceName(),browser:DI().browserName(),data:testEntry(11111)});
-    STORAGE().save(s,'phase11-test-recovery-fixture');
+    localStorage.setItem(STORAGE().primaryKey,JSON.stringify(s));
   }
   function cleanup(){
     const s=state();
@@ -35,7 +34,7 @@
     s.recordTombstones=(s.recordTombstones||[]).filter(t=>t?.entryId!==TEST_ID);
     s.deletionHistory=(s.deletionHistory||[]).filter(d=>d?.archiveId!==ARCHIVE_ID&&d?.sourceId!==TEST_ID);
     s.conflictHistory=(s.conflictHistory||[]).filter(h=>!String(h?.conflictId||'').includes(TEST_ID)&&!String(h?.conflictId||'').includes(ARCHIVE_ID));
-    STORAGE().save(s,'phase11-test-recovery-cleanup');
+    localStorage.setItem(STORAGE().primaryKey,JSON.stringify(s));
   }
   function renderStatus(){
     const s=state(),el=$('phase11TestStatus');if(!el)return;
