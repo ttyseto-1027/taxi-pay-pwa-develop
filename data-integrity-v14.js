@@ -188,6 +188,29 @@
     out.entries=out.entries.map(e=>decorateEntry(e,plan.local.entries.find(x=>x.id===e.id),ctx));
     return out;
   }
+  function buildArchiveRestorePlan(stateInput,archiveId){
+    const state=ensureState(stateInput),archive=(state.dataArchive||[]).find(a=>a.archiveId===archiveId);
+    if(!archive)throw new Error('選択した退避データが見つかりません。');
+    const remote=ensureState(state);
+    if(archive.kind==='entry'){
+      const row=clone(archive.data||{});
+      if(!row.id)throw new Error('退避データに勤務実績IDがありません。');
+      remote.entries=remote.entries.filter(x=>x?.id!==row.id);
+      remote.entries.push(row);
+    }else if(archive.kind==='setting'){
+      const field=String(archive.data?.field||archive.sourceId||'');
+      if(!field)throw new Error('退避された設定項目を特定できません。');
+      remote.settings={...remote.settings,[field]:clone(archive.data?.value)};
+    }else if(archive.kind==='history'){
+      const row=clone(archive.data||{});
+      const month=String(row.month||archive.sourceId||'');
+      if(!month)throw new Error('退避された締め履歴の対象月を特定できません。');
+      row.month=row.month||month;
+      remote.history=remote.history.filter(x=>x?.month!==month);
+      remote.history.push(row);
+    }else throw new Error('この種類の退避データは復元できません。');
+    return{archive,remote,plan:buildMergePlan(state,remote)};
+  }
   function permanentlyDeleteArchives(stateInput,archiveIds,ctx={}){
     const state=ensureState(stateInput),ids=new Set(archiveIds||[]),kept=[];
     for(const a of state.dataArchive){
@@ -206,7 +229,7 @@
     };
     storage.__v14IntegrityInstalled=true;return true;
   }
-  const api={version:1,jstNow,browserName,osName,deviceId,deviceName,deviceContext,stripMeta,fingerprint,same,ensureState,entryDiffs,buildMergePlan,applyMergePlan,addArchive,addTombstone,normalizeBeforeSave,permanentlyDeleteArchives,installStorageGuard};
+  const api={version:1,jstNow,browserName,osName,deviceId,deviceName,deviceContext,stripMeta,fingerprint,same,ensureState,entryDiffs,buildMergePlan,applyMergePlan,addArchive,addTombstone,normalizeBeforeSave,buildArchiveRestorePlan,permanentlyDeleteArchives,installStorageGuard};
   if(root.TaxiPayStorageSafety)installStorageGuard();
   return api;
 });
