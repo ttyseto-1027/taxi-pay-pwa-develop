@@ -112,7 +112,45 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
 {
   const p=DI.buildMergePlan(state([entry('1','2026-08-10',10000)]),state([entry('1','2026-08-10',20000)]));assert.throws(()=>DI.applyMergePlan(p,{},ctx),/未解決/);
 }
-// 21. Develop must keep Service Worker update flow and use only explicit V2 acknowledgement
+// 21. archived entry restore is planned as a user-visible conflict and archive remains
+{
+  const active=entry('1','2026-08-10',20000);
+  const archived={archiveId:'restore-entry',kind:'entry',sourceId:'1',workDate:'2026-08-10',archivedAtJst:'x',reason:'conflict-loser',data:entry('1','2026-08-10',10000)};
+  const s=state([active],{dataArchive:[archived]});
+  const built=DI.buildArchiveRestorePlan(s,'restore-entry');
+  assert.equal(built.plan.conflicts.length,1);
+  const out=DI.applyMergePlan(built.plan,{[built.plan.conflicts[0].id]:'remote'},ctx);
+  assert.equal(out.entries.find(x=>x.id==='1').grossSales,10000);
+  assert(out.dataArchive.some(x=>x.archiveId==='restore-entry'),'restoring must not auto-delete the archive');
+}
+// 22. archived setting restore never overwrites silently
+{
+  const archived={archiveId:'restore-setting',kind:'setting',sourceId:'residentTax',workDate:'',archivedAtJst:'x',reason:'setting-conflict-loser',data:{field:'residentTax',value:5000}};
+  const s=state([entry('1','2026-08-10')],{dataArchive:[archived]});s.settings.residentTax=1000;
+  const built=DI.buildArchiveRestorePlan(s,'restore-setting');
+  const conflict=built.plan.conflicts.find(x=>x.id==='setting:residentTax');assert(conflict);
+  const out=DI.applyMergePlan(built.plan,{[conflict.id]:'remote'},ctx);
+  assert.equal(out.settings.residentTax,5000);assert(out.dataArchive.some(x=>x.archiveId==='restore-setting'));
+}
+// 23. archived history restore never overwrites silently
+{
+  const archived={archiveId:'restore-history',kind:'history',sourceId:'2026-07',workDate:'',archivedAtJst:'x',reason:'history-conflict-loser',data:{month:'2026-07',gross:2000}};
+  const s=state([],{history:[{month:'2026-07',gross:1000}],dataArchive:[archived]});
+  const built=DI.buildArchiveRestorePlan(s,'restore-history');
+  const conflict=built.plan.conflicts.find(x=>x.type==='history');assert(conflict);
+  const out=DI.applyMergePlan(built.plan,{[conflict.id]:'remote'},ctx);
+  assert.equal(out.history.find(x=>x.month==='2026-07').gross,2000);assert(out.dataArchive.some(x=>x.archiveId==='restore-history'));
+}
+// 24. archive restore UI must preserve archive and support all Phase 11 archive kinds
+{
+  const ui=fs.readFileSync(path.join(__dirname,'..','phase11-archive-restore.js'),'utf8');
+  assert(ui.includes('buildArchiveRestorePlan'),'archive restore must use the conflict-aware restore planner');
+  assert(!ui.includes("filter(a=>a.archiveId!==archive.archiveId)"),'restore must never auto-delete the source archive');
+  assert(ui.includes('元の退避データは安全のため残しています'),'UI must tell the user that the archive remains');
+  const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+  assert(html.includes('phase11-archive-restore.js'),'Phase 11 archive restore UI must actually be loaded by index.html');
+}
+// 25. Develop must keep Service Worker update flow and use only explicit V2 acknowledgement
 {
   const ops=fs.readFileSync(path.join(__dirname,'..','phase75-ops.js'),'utf8');
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
@@ -125,4 +163,4 @@ const ctx={deviceId:'dev-a',deviceName:'iPhone',browser:'Safari'};
   assert(ops.includes('pending===latestVersion && currentVersion===pending'),'acknowledgement must complete only after the requested build loads');
   assert(sw.includes('SKIP_WAITING'),'Service Worker must support controlled activation');
 }
-console.log('v1.4 regression core: 21/21 PASS');
+console.log('v1.4 regression core: 25/25 PASS');

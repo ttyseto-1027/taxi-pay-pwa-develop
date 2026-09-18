@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20260905-01",
-  "cacheVersion": "taxi-pay-v1.4-beta-20260905-phase11-01",
-  "releasedAtJst": "2026/09/05 00:36:00 JST",
+  "build": "20260918-01",
+  "cacheVersion": "taxi-pay-v1.4-beta-20260918-phase11-01",
+  "releasedAtJst": "2026/09/18 18:40:00 JST",
   "environment": "DEVELOP"
 }
