@@ -117,7 +117,7 @@
     }
 
     return {
-      schema: 'taxi-pay-drive-v2',
+      schema: 'taxi-pay-drive-v3',
       savedAtJst: jstNow(),
       deviceName: deviceName(),
       deviceId: window.TaxiPayDataIntegrity?.deviceId?.() || '',
@@ -125,22 +125,27 @@
       appVersion: window.TAXI_PAY_APP_META?.version || '',
       appBuild: window.TAXI_PAY_APP_META?.build || '',
       data: {
-        state: parsed,
+        state: window.TaxiPayDataIntegrity?.ensureState?.(parsed) || parsed,
         salesTargets
       }
     };
   }
 
-  function applyPayload(backup) {
+  function normalizedBackupState(backup) {
     if (!backup?.data?.state || typeof backup.data.state !== 'object' ||
         !Array.isArray(backup.data.state.entries) || !Array.isArray(backup.data.state.history)) {
       throw new Error('給与シミュレーターのバックアップ形式ではありません。');
     }
+    // v1/v2など旧Driveバックアップは、新しい保全配列がなくても空配列として読み込む。
+    return window.TaxiPayDataIntegrity?.ensureState?.(backup.data.state) || backup.data.state;
+  }
 
+  function applyPayload(backup, stateOverride = null) {
+    const restoredState = stateOverride || normalizedBackupState(backup);
     const storageApi = window.TaxiPayStorageSafety;
     if (!storageApi) throw new Error('保存保護機能を読み込めませんでした。');
     storageApi.saveRecoverySnapshot('before-drive-restore');
-    storageApi.save(backup.data.state, 'drive-restore');
+    storageApi.save(restoredState, 'drive-restore');
 
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -610,10 +615,24 @@
 
     try {
       saveSafety();
-      applyPayload(await readDrive(id));
+      const backup = await readDrive(id);
+      const remoteState = normalizedBackupState(backup);
+      const localState = window.TaxiPayDataIntegrity?.ensureState?.(JSON.parse(storageApiSnapshot() || '{}')) || {};
+      const resolver = window.TaxiPayRecoveryV14?.resolveStates;
+      if (typeof resolver !== 'function') throw new Error('競合比較機能を利用できません。');
+      const resolved = await resolver(
+        localState,
+        remoteState,
+        {local: deviceName() || 'この端末', remote: backup.deviceName || 'Google Driveバックアップ'}
+      );
+      if (!resolved) {
+        msg('driveBackupMessage', '復元の競合確認をキャンセルしました。端末データは変更していません。', 'info');
+        return;
+      }
+      applyPayload(backup, resolved.state);
       msg(
         'driveBackupMessage',
-        '端末へ復元しました。Google Driveにはまだバックアップしていません。内容を確認してください。',
+        '競合確認後のデータを端末へ復元・統合しました。Google Driveにはまだバックアップしていません。内容を確認してください。',
         'success'
       );
       setTimeout(() => location.reload(), 500);
