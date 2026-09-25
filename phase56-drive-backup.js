@@ -189,7 +189,7 @@
     }
 
     if ($('driveSyncNow')) $('driveSyncNow').disabled = syncing;
-    if ($('driveRefreshBackups')) $('driveRefreshBackups').disabled = !connected;
+    if ($('driveRefreshBackups')) $('driveRefreshBackups').disabled = syncing;
   }
 
   function clearDriveSession() {
@@ -543,6 +543,7 @@
     if (!root) return;
 
     try {
+      await ensureDriveAccess();
       let data = await listBackups();
       let rows = data.files || [];
 
