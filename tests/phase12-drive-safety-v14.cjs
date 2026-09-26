@@ -35,5 +35,5 @@ assert.ok(restoreBody.indexOf("if (!resolved) {") < restoreBody.indexOf('applyPa
 assert.ok(restoreBody.includes("msg('driveBackupMessage', '復元の競合確認をキャンセルしました。端末データは変更していません。', 'info');"), 'cancel path must explicitly leave terminal data unchanged');
 assert.ok(restoreBody.includes('applyPayload(backup, resolved.state);'), 'restore must apply only the resolved state');
 assert.ok(drive.includes("storageApi.saveRecoverySnapshot('before-drive-restore');"), 'apply path must retain a recovery snapshot');
-assert.ok(drive.includes("'Google Driveにはまだバックアップしていません。内容を確認してください。'"), 'restore must not silently resync Drive');
+assert.ok(restoreBody.includes('Google Driveにはまだバックアップしていません。内容を確認してください。'), 'restore must not silently resync Drive');
 console.log('Phase 12 Drive safety regression: SUCCESS');
