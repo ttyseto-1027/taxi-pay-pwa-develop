@@ -12,4 +12,7 @@ assert.ok(!recovery.includes('本番データへ統合する'), 'Develop recover
 assert.ok(recovery.includes('if(STORAGE().getPrimaryRaw()!==beforeRaw)'), 'recovery must stop if terminal data changed after comparison');
 assert.ok(recovery.includes("STORAGE().save(merged,'manual-recovery-merge')"), 'recovery must use protected storage');
 assert.ok(recovery.includes("if(wrote){try{if(beforeRaw===null)localStorage.removeItem(STORAGE().primaryKey);else localStorage.setItem(STORAGE().primaryKey,beforeRaw);"), 'failed post-write validation must roll back the exact pre-merge bytes');
+assert.ok(recovery.includes("new Set(['taxi-pay-drive-v1','taxi-pay-drive-v2','taxi-pay-drive-v3'])"), 'known Drive backup schemas v1-v3 must remain readable');
+assert.ok(recovery.includes("if(!supportedDriveSchemas.has(String(x.schema)))throw new Error"), 'unknown future Drive backup schemas must stop safely');
+assert.ok(recovery.includes('アプリを更新してから再度お試しください。'), 'unsupported future formats must tell the user to update instead of guessing');
 console.log('Phase 13 standard recovery safety regression: SUCCESS');
