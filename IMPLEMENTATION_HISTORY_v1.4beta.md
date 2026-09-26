@@ -1794,3 +1794,47 @@ Build: `20260918-04`
 - 既知の `taxi-pay-drive-v1` / `v2` / `v3` は後方互換として読込可能。
 - 将来の未知schemaは推測して読み込まず、「アプリを更新してから再度お試しください」と停止する。
 - 仕様書の「新形式を理解できない旧アプリからの復元は安全のため停止」を実装・回帰で固定。
+
+
+---
+
+## Phase 14 — Production事前監査・同期計画（2026-09-26）
+
+### Production監査結果
+- Productionリポジトリ `ttyseto-1027/taxi-pay-pwa` は読み取り監査可能だが、現在のGitHub連携では書き込みが403 `Resource not accessible by integration` となる。
+- Production `main` の事前退避ブランチ作成も同じ403で停止するため、Productionにはまだ一切変更を加えていない。
+- Productionの現行コミット履歴と主要ファイルをDevelopと比較し、Develop一式の無条件上書きは行わない方針を維持する。
+
+### 同一を確認した主要ファイル
+- `firebase-config.js`
+- `firestore.rules`
+- `manifest.json`
+- `admin.html`
+- `admin.js`
+- `tax-table-2026.js`
+
+### Productionに未導入で、v1.4βのデータ保全に必要な主要ファイル
+- `storage-safety.js`
+- `data-integrity-v14.js`
+- `data-recovery-v14.js`
+- `device-registry-v14.js`
+- `phase11-archive-restore.js`
+
+### 同期時に環境別調整が必要な箇所
+- `phase7-ui.js` のDevelop専用ヘッダー表示はProductionへ持ち込まない。
+- `app-meta.js` の環境判定と保存キー分離を維持し、ProductionはProductionキーを使用する。
+- `sw.js` はProductionへ導入する実ファイル集合に合わせてキャッシュ対象を更新し、旧キャッシュとの混在を避ける。
+- `index.html` / `app.js` / `phase56-drive-backup.js` 等の差分は、Production固有設定を保持した上で必要なv1.4β結合部分だけを同期する。
+
+### Production書き込み権限復旧後の固定手順
+1. Production `main` のHEADから日付付き退避ブランチを作成する。
+2. Production `main` からPhase 14作業ブランチを作成する。
+3. Production固有差分を再取得し、退避ブランチと一致することを確認する。
+4. データ保全ファイルと必要な結合差分を選別移植する。Develop専用表示・Develop専用キーは移植しない。
+5. 構文・保存層・データ整合性・端末識別・競合/退避・Drive・PWAキャッシュを全回帰する。
+6. Production向けPRを作成し、回帰合格後にのみProduction `main` へ反映する。
+7. 反映後にProductionの公開Build・Service Worker・保存キー・ログイン・既存データ非破壊を確認する。
+
+### 安全条件
+- Production書き込み権限がない間は、Develop側の準備・監査のみ行い、Productionの代替経路による直接変更は行わない。
+- Production同期で保存キーの自動移行・既存利用者データの削除・Driveの自動上書きを新規に導入しない。
