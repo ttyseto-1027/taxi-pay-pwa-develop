@@ -9,7 +9,12 @@
   const LABELS={date:'勤務日',paidLeaveUnits:'有休日数',grossSales:'総営収（税込）',adjustedGrossSales:'給与計算用税込営収',grossRevenue:'給与計算用税込営収',otherPlus:'その他（＋）',otherMinus:'その他（－）',idleA:'A空転',idleB:'B空転',clockIn:'出勤時刻',clockOut:'退勤時刻',normalBreakMinutes:'通常休憩',nightBreakMinutes:'深夜休憩',holidayType:'休日区分',hadAccident:'事故',hadViolation:'違反'};
   function valueText(field,v){if(v===undefined)return '未設定';if(v===null)return 'なし';if(typeof v==='object')return JSON.stringify(v);if(typeof v==='boolean')return v?'あり':'なし';if(/gross|Plus|Minus|idle/i.test(field)&&Number.isFinite(Number(v)))return `${Number(v).toLocaleString('ja-JP')}円`;if(/Minutes/i.test(field)&&Number.isFinite(Number(v)))return `${Number(v)}分`;return String(v);}
   function sourceState(x){
-    if(x&&x.schema&&x.data?.state)return x.data.state;
+    if(x&&x.schema){
+      const supportedDriveSchemas=new Set(['taxi-pay-drive-v1','taxi-pay-drive-v2','taxi-pay-drive-v3']);
+      if(!supportedDriveSchemas.has(String(x.schema)))throw new Error('このバックアップ形式は現在のアプリでは安全に復旧できません。アプリを更新してから再度お試しください。');
+      if(x.data?.state)return x.data.state;
+      throw new Error('Google Driveバックアップ内の給与データを確認できませんでした。');
+    }
     if(x&&x.rescueFormat&&x.state)return x.state;
     if(x&&x.backupFormat&&x.state)return x.state;
     if(x&&x.state&&Array.isArray(x.state.entries))return x.state;
