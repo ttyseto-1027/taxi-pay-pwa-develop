@@ -1838,3 +1838,14 @@ Build: `20260918-04`
 ### 安全条件
 - Production書き込み権限がない間は、Develop側の準備・監査のみ行い、Productionの代替経路による直接変更は行わない。
 - Production同期で保存キーの自動移行・既存利用者データの削除・Driveの自動上書きを新規に導入しない。
+
+
+---
+
+## Phase 14 — GitHub連携復旧・Production退避確定（2026-10-01）
+
+- GitHub App installation `156783253` の選択対象へ `ttyseto-1027/taxi-pay-pwa` を追加し、Productionリポジトリへのpush権限が有効になったことを再取得で確認。
+- Production `main` の基準コミットを `85597dca050d5dbe4c78cd00cc3e579ce30e6c13` として確定。
+- 同じコミットから退避ブランチ `backup/production-pre-phase14-20261001` を作成し、書き込み403の解消を実書き込みで確認。
+- 退避ブランチは既存コミットへの参照だけであり、Production main・コード・デプロイは変更していない。
+- 以後の準備はDevelopリポジトリ内で実施し、Production固有差分、環境別保存キー、Develop専用表示・実機テストを誤移植しない安全ゲートを全回帰へ追加。
