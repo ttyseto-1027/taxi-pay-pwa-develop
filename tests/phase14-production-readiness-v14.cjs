@@ -59,7 +59,8 @@ const liveTest = read('phase11-live-test.js');
 assert.ok(liveTest.includes('if(!STORAGE()?.isDevelop)return'), 'Phase 11 live test must remain Develop-only');
 
 const deviceTest = read('phase10-device-association-test.js');
-assert.ok(deviceTest.includes('isDevelop'), 'Phase 10 device association test must remain Develop-gated');
+assert.ok(deviceTest.includes("params.get('phase10DeviceTest') !== '1'"), 'Phase 10 device association test must require its explicit query flag');
+assert.ok(developUi.includes("get('phase10DeviceTest') === '1'"), 'Phase 10 test loader must remain identifiable for exclusion from Production');
 
 const history = read('IMPLEMENTATION_HISTORY_v1.4beta.md');
 assert.ok(history.includes(productionBaseline), 'Phase 14 history must record the exact Production baseline commit');
