@@ -225,8 +225,19 @@
       } catch {
         // JSONでないエラー応答はステータスだけを表示する。
       }
+      const apiMessage = String(errorData.error?.message || '');
+      if (
+        response.status === 403 &&
+        /insufficient authentication scopes/i.test(apiMessage)
+      ) {
+        clearDriveSession();
+        throw new Error(
+          'Google Driveの利用権限が不足しています。' +
+          'もう一度［バックアップ一覧を更新］を押して、Google Driveの利用を許可してください。'
+        );
+      }
       throw new Error(
-        errorData.error?.message ||
+        apiMessage ||
         `Google Drive APIエラー（${response.status}）`
       );
     }
@@ -369,10 +380,8 @@
   async function ensureDriveAccess() {
     if (accessToken) return true;
 
-    accessToken =
-      sessionStorage.getItem('taxipay:google-api-access-token') ||
-      sessionStorage.getItem(TOKEN_KEY) ||
-      '';
+    // 通常ログインのGoogle APIトークンにはDrive権限がないため流用しない。
+    accessToken = sessionStorage.getItem(TOKEN_KEY) || '';
 
     if (accessToken) {
       sessionStorage.setItem(TOKEN_KEY, accessToken);
@@ -763,10 +772,8 @@
   }
 
   function bind() {
-    accessToken =
-      sessionStorage.getItem('taxipay:google-api-access-token') ||
-      sessionStorage.getItem(TOKEN_KEY) ||
-      '';
+    // 通常ログインのGoogle APIトークンにはDrive権限がないため流用しない。
+    accessToken = sessionStorage.getItem(TOKEN_KEY) || '';
 
     renderStatus();
 
