@@ -63,4 +63,22 @@ assert.ok(readDriveBody.includes("'text'"), 'Drive media must be read as text be
 assert.ok(drive.includes("if (responseType === 'text') return response.text();"), 'api must support raw text responses');
 assert.ok(readDriveBody.includes('return parseDriveJsonText(raw);'), 'Drive restore must use the guarded parser');
 
+const ensureAccessStart = drive.indexOf('async function ensureDriveAccess()');
+const ensureAccessEnd = drive.indexOf('function storageApiSnapshot()', ensureAccessStart);
+const ensureAccessBody = drive.slice(ensureAccessStart, ensureAccessEnd);
+assert.ok(ensureAccessBody.includes('sessionStorage.getItem(TOKEN_KEY)'), 'Drive access must reuse only the dedicated Drive token');
+assert.ok(
+  !drive.includes("sessionStorage.getItem('taxipay:google-api-access-token')"),
+  'ordinary Google login tokens must never be treated as Drive-authorized tokens'
+);
+const bindStart = drive.indexOf('function bind()');
+const bindEnd = drive.indexOf("document.readyState === 'loading'", bindStart);
+const bindBody = drive.slice(bindStart, bindEnd);
+assert.ok(bindBody.includes('sessionStorage.getItem(TOKEN_KEY)'), 'initial Drive state must use the dedicated token key');
+assert.ok(drive.includes('/insufficient authentication scopes/i'), 'Drive scope errors must be recognized explicitly');
+assert.ok(
+  drive.includes('Google Driveの利用権限が不足しています。'),
+  'Drive scope errors must be translated into a clear Japanese message'
+);
+
 console.log('Phase 12 Drive safety regression: SUCCESS');
