@@ -200,7 +200,7 @@
     renderStatus();
   }
 
-  async function api(url, options = {}) {
+  async function api(url, options = {}, responseType = 'json') {
     if (!accessToken) {
       throw new Error('Google Driveの利用権限がありません。［Google Driveにバックアップ］を押してください。');
     }
@@ -232,6 +232,7 @@
     }
 
     if (response.status === 204) return null;
+    if (responseType === 'text') return response.text();
     return response.json();
   }
 
@@ -583,10 +584,29 @@
     }
   }
 
+  function parseDriveJsonText(raw) {
+    const text = String(raw ?? '').replace(/^\uFEFF/, '').trim();
+    if (!text) {
+      throw new Error('Google Driveのバックアップファイルが空です。');
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(
+        'Google DriveのバックアップJSONを読み取れませんでした。' +
+        'ファイルが破損しているか、対応していない形式の可能性があります。'
+      );
+    }
+  }
+
   async function readDrive(id) {
-    return api(
-      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`
+    const raw = await api(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`,
+      {},
+      'text'
     );
+    return parseDriveJsonText(raw);
   }
 
   function saveSafety() {

@@ -36,4 +36,31 @@ assert.ok(restoreBody.includes("msg('driveBackupMessage', '復元の競合確認
 assert.ok(restoreBody.includes('applyPayload(backup, resolved.state);'), 'restore must apply only the resolved state');
 assert.ok(drive.includes("storageApi.saveRecoverySnapshot('before-drive-restore');"), 'apply path must retain a recovery snapshot');
 assert.ok(restoreBody.includes('Google Driveにはまだバックアップしていません。内容を確認してください。'), 'restore must not silently resync Drive');
+const parserStart = drive.indexOf('function parseDriveJsonText(raw)');
+const parserEnd = drive.indexOf('async function readDrive(id)', parserStart);
+assert.ok(parserStart >= 0 && parserEnd > parserStart, 'Drive JSON parser must exist before readDrive');
+const parserSource = drive.slice(parserStart, parserEnd);
+const parseDriveJsonText = new Function(`${parserSource}; return parseDriveJsonText;`)();
+assert.deepEqual(
+  parseDriveJsonText('\uFEFF  {"schema":"taxi-pay-drive-v3","data":{"state":{}}}  '),
+  {schema:'taxi-pay-drive-v3', data:{state:{}}},
+  'Drive JSON parser must accept a UTF-8 BOM and surrounding whitespace'
+);
+assert.throws(
+  () => parseDriveJsonText('   '),
+  /バックアップファイルが空です/,
+  'empty Drive files must stop with a clear message'
+);
+assert.throws(
+  () => parseDriveJsonText('{broken'),
+  /バックアップJSONを読み取れませんでした/,
+  'invalid Drive JSON must stop before restore'
+);
+const readDriveStart = drive.indexOf('async function readDrive(id)');
+const readDriveEnd = drive.indexOf('function saveSafety()', readDriveStart);
+const readDriveBody = drive.slice(readDriveStart, readDriveEnd);
+assert.ok(readDriveBody.includes("'text'"), 'Drive media must be read as text before explicit parsing');
+assert.ok(drive.includes("if (responseType === 'text') return response.text();"), 'api must support raw text responses');
+assert.ok(readDriveBody.includes('return parseDriveJsonText(raw);'), 'Drive restore must use the guarded parser');
+
 console.log('Phase 12 Drive safety regression: SUCCESS');
