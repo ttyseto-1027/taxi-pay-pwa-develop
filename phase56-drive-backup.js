@@ -898,3 +898,36 @@
     if ($('restoreSafetyButton')) {
       $('restoreSafetyButton').hidden = !localStorage.getItem(SAFETY_KEY);
     }
+
+    $('driveSyncNow')?.addEventListener('click', syncNow);
+    $('driveRefreshBackups')?.addEventListener('click', refreshBackups);
+    $('restoreSafetyButton')?.addEventListener('click', restoreSafety);
+
+    $('driveBackupList')?.addEventListener('click', event => {
+      const restoreButton = event.target.closest('[data-drive-restore]');
+      const deleteButton = event.target.closest('[data-drive-delete]');
+
+      if (restoreButton) restoreDrive(restoreButton.dataset.driveRestore);
+      if (deleteButton) {
+        removeBackup(
+          deleteButton.dataset.driveDelete,
+          deleteButton.dataset.driveLabel
+        );
+      }
+    });
+
+    // 既にこのタブ内に有効なDriveトークンがある場合だけ一覧を読み込む。
+    // 自動バックアップはしない。
+    if (accessToken) {
+      ensureFolder()
+        .then(() => Promise.all([refreshBackups(), checkConflict()]))
+        .catch(() => {
+          clearDriveSession();
+        });
+    }
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', bind)
+    : bind();
+})();
