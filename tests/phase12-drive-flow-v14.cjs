@@ -78,7 +78,12 @@ function createState(marker) {
   };
 }
 
-function createHarness({fetchImpl, initialSession = {}, authorizeToken = 'drive-token'} = {}) {
+function createHarness({
+  fetchImpl,
+  initialSession = {},
+  authorizeToken = 'drive-token',
+  authorizeError = null
+} = {}) {
   const ids = [
     'driveConnectionStatus',
     'driveLastSync',
@@ -100,6 +105,7 @@ function createHarness({fetchImpl, initialSession = {}, authorizeToken = 'drive-
   const requests = [];
   const saves = [];
   const recoverySnapshots = [];
+  const diagnostics = [];
   let authorizationCalls = 0;
   let reloads = 0;
 
@@ -146,6 +152,7 @@ function createHarness({fetchImpl, initialSession = {}, authorizeToken = 'drive-
     },
     async TaxiPayRequestDriveAuthorization() {
       authorizationCalls += 1;
+      if (authorizeError) throw authorizeError;
       return authorizeToken;
     }
   };
@@ -170,7 +177,11 @@ function createHarness({fetchImpl, initialSession = {}, authorizeToken = 'drive-
       return 1;
     },
     clearTimeout() {},
-    console,
+    console: {
+      log: console.log,
+      warn: (...args) => diagnostics.push({level: 'warn', args}),
+      error: (...args) => diagnostics.push({level: 'error', args})
+    },
     Intl,
     Date,
     JSON,
@@ -194,6 +205,7 @@ function createHarness({fetchImpl, initialSession = {}, authorizeToken = 'drive-
     requests,
     saves,
     recoverySnapshots,
+    diagnostics,
     get authorizationCalls() {
       return authorizationCalls;
     },
@@ -384,13 +396,69 @@ async function testInvalidJsonStopsBeforeApply() {
   assert.equal(harness.reloads, 0);
 }
 
+async function testExternalErrorsStayJapanese() {
+  const serverFailure = createHarness({
+    fetchImpl: async () => responseJson({
+      error: {message: 'Backend Error'}
+    }, 503)
+  });
+
+  await serverFailure.elements.driveRefreshBackups.listeners.get('click')();
+  assert.match(
+    serverFailure.elements.driveBackupMessage.textContent,
+    /Google Drive側で一時的な障害が発生しています/
+  );
+  assert.doesNotMatch(
+    serverFailure.elements.driveBackupMessage.textContent,
+    /Backend Error/i
+  );
+
+  const networkFailure = createHarness({
+    fetchImpl: async () => {
+      throw new Error('Load failed');
+    }
+  });
+
+  await networkFailure.elements.driveRefreshBackups.listeners.get('click')();
+  assert.match(
+    networkFailure.elements.driveBackupMessage.textContent,
+    /Google Driveと通信できませんでした/
+  );
+  assert.doesNotMatch(
+    networkFailure.elements.driveBackupMessage.textContent,
+    /Load failed/i
+  );
+  assert.equal(networkFailure.diagnostics[0]?.level, 'error');
+
+  const authError = Object.assign(
+    new Error('An internal authentication error has occurred.'),
+    {code: 'auth/internal-error'}
+  );
+  const authFailure = createHarness({
+    authorizeError: authError,
+    fetchImpl: async url => {
+      throw new Error(`fetch must not run after auth failure: ${url}`);
+    }
+  });
+
+  await authFailure.elements.driveRefreshBackups.listeners.get('click')();
+  assert.match(
+    authFailure.elements.driveBackupMessage.textContent,
+    /Google Driveの認証に失敗しました/
+  );
+  assert.doesNotMatch(
+    authFailure.elements.driveBackupMessage.textContent,
+    /internal authentication error/i
+  );
+}
+
 (async () => {
   await testAuthorizedListAndBomRestore();
   await testScopeFailureIsJapaneseAndClearsSession();
   await testInvalidJsonStopsBeforeApply();
+  await testExternalErrorsStayJapanese();
   console.log('Phase 12 Drive flow simulation: SUCCESS');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
 });
-
