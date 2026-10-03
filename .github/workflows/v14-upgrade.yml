@@ -39,6 +39,7 @@ jobs:
           node tests/phase10-safety-v14.cjs
           node tests/phase11-safety-v14.cjs
           node tests/phase12-drive-safety-v14.cjs
+          node tests/phase12-drive-flow-v14.cjs
           node tests/phase13-recovery-safety-v14.cjs
           node tests/phase14-production-readiness-v14.cjs
       - name: Static integration guards
