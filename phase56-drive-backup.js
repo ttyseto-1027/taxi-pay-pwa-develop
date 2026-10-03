@@ -200,22 +200,119 @@
     renderStatus();
   }
 
+  function driveApiErrorMessage(status, errorData = {}) {
+    const errors = Array.isArray(errorData.error?.errors)
+      ? errorData.error.errors
+      : [];
+    const reasons = errors.map(item => String(item?.reason || ''));
+    const apiMessage = String(errorData.error?.message || '');
+    const hasReason = (...targets) => targets.some(reason => reasons.includes(reason));
+
+    if (
+      status === 403 &&
+      /insufficient authentication scopes/i.test(apiMessage)
+    ) {
+      return {
+        clearSession: true,
+        message:
+          'Google Driveの利用権限が不足しています。' +
+          'もう一度［バックアップ一覧を更新］を押して、Google Driveの利用を許可してください。'
+      };
+    }
+
+    if (status === 403 && hasReason('storageQuotaExceeded')) {
+      return {
+        clearSession: false,
+        message: 'Google Driveの保存容量が不足しています。Driveの空き容量を確認してください。'
+      };
+    }
+
+    if (
+      status === 429 ||
+      hasReason(
+        'rateLimitExceeded',
+        'userRateLimitExceeded',
+        'sharingRateLimitExceeded',
+        'downloadQuotaExceeded'
+      )
+    ) {
+      return {
+        clearSession: false,
+        message: 'Google Driveの利用回数制限に達しました。時間をおいてから、もう一度お試しください。'
+      };
+    }
+
+    if (status === 400) {
+      return {
+        clearSession: false,
+        message: 'Google Driveへの要求を処理できませんでした。アプリを更新してから、もう一度お試しください。'
+      };
+    }
+
+    if (status === 403) {
+      return {
+        clearSession: false,
+        message: 'Google Driveへのアクセスが許可されていません。選択したGoogleアカウントとDriveの権限を確認してください。'
+      };
+    }
+
+    if (status === 404) {
+      return {
+        clearSession: false,
+        message: '選択したGoogle Driveのバックアップが見つかりませんでした。一覧を更新してください。'
+      };
+    }
+
+    if (status === 409) {
+      return {
+        clearSession: false,
+        message: 'Google Drive上で更新が競合しました。一覧を更新してから、もう一度お試しください。'
+      };
+    }
+
+    if (status >= 500) {
+      return {
+        clearSession: false,
+        message: 'Google Drive側で一時的な障害が発生しています。時間をおいてから、もう一度お試しください。'
+      };
+    }
+
+    return {
+      clearSession: false,
+      message: `Google Driveとの処理に失敗しました（エラー ${status}）。時間をおいてから、もう一度お試しください。`
+    };
+  }
+
   async function api(url, options = {}, responseType = 'json') {
     if (!accessToken) {
       throw new Error('Google Driveの利用権限がありません。［Google Driveにバックアップ］を押してください。');
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        ...(options.headers || {})
-      }
-    });
+    let response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          ...(options.headers || {})
+        }
+      });
+    } catch (error) {
+      console.error('Google Drive network error:', error);
+      throw Object.assign(
+        new Error(
+          'Google Driveと通信できませんでした。通信状態を確認して、もう一度お試しください。'
+        ),
+        {code: 'drive/network-error'}
+      );
+    }
 
     if (response.status === 401) {
       clearDriveSession();
-      throw new Error('Google Driveの認証期限が切れました。もう一度［Google Driveにバックアップ］を押してください。');
+      throw Object.assign(
+        new Error('Google Driveの認証期限が切れました。もう一度［Google Driveにバックアップ］を押してください。'),
+        {code: 'drive/session-expired'}
+      );
     }
 
     if (!response.ok) {
@@ -225,20 +322,11 @@
       } catch {
         // JSONでないエラー応答はステータスだけを表示する。
       }
-      const apiMessage = String(errorData.error?.message || '');
-      if (
-        response.status === 403 &&
-        /insufficient authentication scopes/i.test(apiMessage)
-      ) {
-        clearDriveSession();
-        throw new Error(
-          'Google Driveの利用権限が不足しています。' +
-          'もう一度［バックアップ一覧を更新］を押して、Google Driveの利用を許可してください。'
-        );
-      }
-      throw new Error(
-        apiMessage ||
-        `Google Drive APIエラー（${response.status}）`
+      const translated = driveApiErrorMessage(response.status, errorData);
+      if (translated.clearSession) clearDriveSession();
+      throw Object.assign(
+        new Error(translated.message),
+        {code: 'drive/api-error'}
       );
     }
 
@@ -425,6 +513,13 @@
       saveMeta({driveAuthorizationPending: false});
       renderStatus();
 
+      if (
+        error?.code === 'drive/network-error' ||
+        error?.code === 'drive/session-expired' ||
+        error?.code === 'drive/api-error'
+      ) {
+        throw error;
+      }
       if (error?.code === 'auth/popup-closed-by-user') {
         throw new Error('Google Driveの権限確認がキャンセルされました。');
       }
@@ -443,8 +538,31 @@
           'Googleログイン状態を確認できません。いったんログアウトして、もう一度Googleログインしてください。'
         );
       }
+      if (error?.code === 'drive/no-access-token') {
+        throw new Error(
+          'Google Driveの認証情報を取得できませんでした。もう一度権限確認を行ってください。'
+        );
+      }
+      if (error?.code === 'auth/network-request-failed') {
+        throw new Error(
+          'Googleの認証サービスと通信できませんでした。通信状態を確認して、もう一度お試しください。'
+        );
+      }
+      if (error?.code === 'auth/too-many-requests') {
+        throw new Error(
+          'Google認証の試行回数が多すぎます。時間をおいてから、もう一度お試しください。'
+        );
+      }
+      if (error?.code === 'auth/unauthorized-domain') {
+        throw new Error(
+          'このアプリの公開URLではGoogle認証を利用できません。管理者へお知らせください。'
+        );
+      }
 
-      throw error;
+      console.error('Google Drive authorization failed:', error);
+      throw new Error(
+        'Google Driveの認証に失敗しました。時間をおいてから、もう一度お試しください。'
+      );
     }
   }
 
@@ -780,36 +898,3 @@
     if ($('restoreSafetyButton')) {
       $('restoreSafetyButton').hidden = !localStorage.getItem(SAFETY_KEY);
     }
-
-    $('driveSyncNow')?.addEventListener('click', syncNow);
-    $('driveRefreshBackups')?.addEventListener('click', refreshBackups);
-    $('restoreSafetyButton')?.addEventListener('click', restoreSafety);
-
-    $('driveBackupList')?.addEventListener('click', event => {
-      const restoreButton = event.target.closest('[data-drive-restore]');
-      const deleteButton = event.target.closest('[data-drive-delete]');
-
-      if (restoreButton) restoreDrive(restoreButton.dataset.driveRestore);
-      if (deleteButton) {
-        removeBackup(
-          deleteButton.dataset.driveDelete,
-          deleteButton.dataset.driveLabel
-        );
-      }
-    });
-
-    // 既にこのタブ内に有効なDriveトークンがある場合だけ一覧を読み込む。
-    // 自動バックアップはしない。
-    if (accessToken) {
-      ensureFolder()
-        .then(() => Promise.all([refreshBackups(), checkConflict()]))
-        .catch(() => {
-          clearDriveSession();
-        });
-    }
-  }
-
-  document.readyState === 'loading'
-    ? document.addEventListener('DOMContentLoaded', bind)
-    : bind();
-})();
