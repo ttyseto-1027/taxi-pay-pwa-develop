@@ -1898,3 +1898,15 @@ Build: `20260918-04`
 - 模擬APIで権限不足、Google側障害、通信失敗、未知の認証失敗を発生させ、日本語表示と英語非表示を自動回帰。
 - 保存形式、既存バックアップ、端末データ、競合処理、Production main・コード・デプロイは変更しない。
 
+---
+
+## Phase 15 — Develop自動事前確認ゲート（Build変更なし）
+
+- Phase 15の実機確認前に、Develop内で機械的に確認できる公開整合性を1本のゲートへ集約。
+- `app-meta.js` / `app-meta.json` / Service WorkerのVersion・Build・キャッシュ名一致を検証。
+- `index.html` が読み込むローカル資産の実在とService Workerキャッシュ登録、データ保護スクリプトの読込順を検証。
+- `tests/*.cjs` の全ファイルがGitHub Actionsの全回帰へ登録されていることを自動検査。
+- 既存の `regression-develop-header.cjs` が全回帰から漏れていたため、ワークフローへ追加。
+- 実機確認は既定どおりPhase 15終盤に集約し、Google許可・実Drive通信・iOS PWA更新後のデータ維持だけを各1回確認する。
+- アプリ本体、保存形式、Build番号、Production main・コード・デプロイは変更しない。
+
