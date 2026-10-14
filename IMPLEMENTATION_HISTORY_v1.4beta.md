@@ -1907,6 +1907,17 @@ Build: `20260918-04`
 - `index.html` が読み込むローカル資産の実在とService Workerキャッシュ登録、データ保護スクリプトの読込順を検証。
 - `tests/*.cjs` の全ファイルがGitHub Actionsの全回帰へ登録されていることを自動検査。
 - 既存の `regression-develop-header.cjs` が全回帰から漏れていたため、ワークフローへ追加。
-- 実機確認は既定どおりPhase 15終盤に集約し、Google許可・実Drive通信・iOS PWA更新後のデータ維持だけを各1回確認する。
+- 実機確認の工程は後述の整理によりPhase 14へ移し、Phase 15では自動確認とProductionの既存データ表示確認だけを行う。
+- アプリ本体、保存形式、Build番号、Production main・コード・デプロイは変更しない。
+
+---
+
+## Phase 14 / 15 — 実機確認の集約（Build変更なし）
+
+- Phase 14のDevelop実機確認は、Google Driveの一覧取得、1世代の復元/競合、更新後のデータ維持を1回の流れで確認する。
+- 失敗時は同じ操作を繰り返さず、1回の結果をDevelop側の診断材料とする。
+- Phase 14の確認に合格した後だけ、Productionへ必要な完成内容を選別移植する。
+- Phase 15のBuild、Service Worker、保存キー、Develop専用要素の混入、ログイン導線、全回帰、公開状態は自動確認する。
+- Phase 15で利用者が行う確認は、Productionを1回開き、以前の作業データが残っていることの確認だけとする。Drive一覧・復元/競合は再確認しない。
 - アプリ本体、保存形式、Build番号、Production main・コード・デプロイは変更しない。
 

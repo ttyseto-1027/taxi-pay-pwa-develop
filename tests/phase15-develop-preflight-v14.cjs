@@ -93,8 +93,10 @@ for (const testFile of testFiles) {
 }
 
 assert.ok(development.includes('## 実機確認方針'));
-assert.ok(development.includes('Phase 15'));
-assert.ok(development.includes('各1回'));
+assert.ok(development.includes('Phase 14で一覧取得・復元/競合・更新後データ維持を1回の実機確認にまとめる'));
+assert.ok(development.includes('Phase 15では、Build・Service Worker・保存キー・Develop専用要素の混入・ログイン導線・全回帰・公開状態を自動確認する'));
+assert.ok(development.includes('Productionを1回開き、以前の作業データが残っていることだけ'));
+assert.ok(development.includes('Drive一覧・復元/競合はPhase 15で再確認しない'));
 assert.ok(
   history.includes('Production main・コード・デプロイは変更しない'),
   'history must retain the Production no-change boundary'
