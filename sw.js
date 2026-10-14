@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20261003-phase12-drive-error-ja-03';
+const CACHE = 'taxi-pay-v1.4-beta-20261014-help-01';
 
 const FILES = [
   './',
