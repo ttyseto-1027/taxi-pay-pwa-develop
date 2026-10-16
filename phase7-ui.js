@@ -162,6 +162,11 @@
       document.querySelector(`.menu-item[data-view="${button.dataset.helpView}"]`)?.click();
     });
   });
+  document.querySelectorAll('[data-help-admin-href]').forEach(button => {
+    button.addEventListener('click', () => {
+      location.assign(button.dataset.helpAdminHref);
+    });
+  });
   filterHelp();
 
   // Phase 10 validation only: an explicit query parameter loads a
@@ -182,4 +187,10 @@
   }
 })();
 
-window.addEventListener('taxipay:profile',(event)=>{const el=document.getElementById('systemInfoMenuLink');if(el)el.hidden=event.detail?.isAdmin!==true;});
+window.addEventListener('taxipay:profile',(event)=>{
+  const isAdmin=event.detail?.isAdmin===true;
+  const systemInfo=document.getElementById('systemInfoMenuLink');
+  const helpAdminActions=document.getElementById('helpAdminActions');
+  if(systemInfo)systemInfo.hidden=!isAdmin;
+  if(helpAdminActions)helpAdminActions.hidden=!isAdmin;
+});
