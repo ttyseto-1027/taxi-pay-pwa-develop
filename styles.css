@@ -456,6 +456,22 @@ tr[hidden] { display: none !important; }
 .admin-announcement-preview{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:700px){.admin-menu-link{display:flex}.admin-page .admin-app-header{align-items:flex-start}.admin-page .header-controls{display:flex;flex-wrap:wrap;gap:8px}.admin-page .admin-link{display:inline-flex!important}}
 
+/* Phase 17: 管理者専用・給与計算条件 */
+.payroll-rules-main{max-width:980px}
+.payroll-rules-notice{border-left:5px solid var(--primary);background:#f4fafb}
+.payroll-rules-notice p{margin:.45rem 0}
+.payroll-rules-heading{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,320px);gap:18px;align-items:end}
+.payroll-rules-heading h2{margin-bottom:4px}
+.payroll-rules-heading p{margin:0}
+.payroll-active-rule{margin-top:14px;padding:11px 13px;border-radius:9px;background:#edf7f9;color:#1f4d58;font-weight:700}
+.payroll-rule-grid{margin-top:12px}
+.payroll-rule-history-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid var(--border)}
+.payroll-rule-history-row:last-child{border-bottom:0}
+.payroll-rule-history-row strong,.payroll-rule-history-row small{display:block}
+.payroll-rule-history-row small{margin-top:4px;color:var(--muted)}
+.payroll-rule-history-row .actions{margin-top:0;flex-wrap:nowrap}
+@media(max-width:700px){.payroll-rules-heading{grid-template-columns:1fr}.payroll-rule-history-row{align-items:flex-start;flex-direction:column}.payroll-rule-history-row .actions{width:100%}.payroll-rule-history-row .actions button{flex:1}}
+
 /* Phase7 r3: announcement management priorities */
 .system-announcement[data-priority="important"],.admin-announcement-preview[data-priority="important"]{border-color:#b72a2d;background:#fff0f0;color:#7a171a}
 .system-announcement[data-priority="notice"],.admin-announcement-preview[data-priority="notice"]{border-color:#c78a00;background:#fff7dd;color:#5c4100}

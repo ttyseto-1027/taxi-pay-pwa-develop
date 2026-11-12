@@ -1,9 +1,10 @@
 'use strict';
 const STORAGE=window.TaxiPayStorageSafety;
 if(!STORAGE) throw new Error('storage-safety.js が読み込まれていません。');
+const PAYROLL_RULES=window.TaxiPayPayrollRules;
+if(!PAYROLL_RULES) throw new Error('payroll-rules.js が読み込まれていません。');
 const LS_KEY=STORAGE.primaryKey;
 const OLD_KEYS=STORAGE.legacyKeys.filter(k=>k!==LS_KEY);
-const ADMIN_PASSWORD='TaxiPay-Dev-2026';
 
 const SHIFT_RULES={
   '隔日勤務':{family:'regular',label:'隔日勤務',shiftMinutes:855,monthlyMinutes:10260,plannedShifts:12,modelAllowance:true,calc:'kaku'},
@@ -23,7 +24,7 @@ const SHIFT_RULES={
 const DEFAULT_STATE={
   initialized:false,
   settings:{shiftType:'',taxRate:10,fareRevisionCoefficient:1,payRevenueCoefficient:0.9585,modelWorkAllowance:3000,accidentFreeAllowance:700,violationFreeAllowance:200,healthInsurance:0,pension:0,employmentInsurance:0,residentTax:0,unionFee:0,mutualAidFee:0,otherDeduction:0,dependentCount:0,withholdingCategory:'A',paidLeaveDailyRate:0,paidLeaveOpeningBalance:0,paidLeaveNextGrantDate:'',paidLeaveNextGrantDays:0,paidLeaveAppliedGrants:[],paidLeaveUsageHistory:[],deductionHistory:[],additionalPayments:[],minimumWageHistory:[{region:'東京都',hourlyRate:1226,effectiveFrom:'2025-10-03',effectiveTo:''}],statutoryOvertimeRate:25,scheduledOvertimeRate:25,over60Rate:50,statutoryHolidayRate:35,nonStatutoryHolidayRate:25,nightRate:25},
-  entries:[],history:[]
+  entries:[],history:[],payrollRuleHistory:[]
 };
 
 const $=id=>document.getElementById(id);
@@ -97,9 +98,17 @@ function addMonths(ym,n){const [y,m]=ym.split('-').map(Number),d=new Date(y,m-1+
 function closeDay(year,month){return month===2?14:month===3?16:15;}
 function payrollMonthOf(dateStr){const d=parseDate(dateStr),y=d.getFullYear(),m=d.getMonth()+1,day=d.getDate();if(day<=closeDay(y,m))return `${y}-${pad(m)}`;const nx=new Date(y,m,1);return `${nx.getFullYear()}-${pad(nx.getMonth()+1)}`;}
 function payrollPeriod(ym){const [y,m]=ym.split('-').map(Number);const end=new Date(y,m-1,closeDay(y,m));const pm=new Date(y,m-2,1),start=new Date(pm.getFullYear(),pm.getMonth(),closeDay(pm.getFullYear(),pm.getMonth()+1)+1);return {start:fmtDate(start),end:fmtDate(end)};}
-function currentRule(){return SHIFT_RULES[state.settings.shiftType]||SHIFT_RULES['隔日勤務'];}
+function selectedPayrollMonth(){return $('currentMonth')?.value||payrollMonthOf(today());}
+function payrollRuleForMonth(ym=selectedPayrollMonth()){return PAYROLL_RULES.resolve(state.payrollRuleHistory,ym,state.settings);}
+function currentRule(ym=selectedPayrollMonth(),type=state.settings.shiftType){
+  const base=SHIFT_RULES[type]||SHIFT_RULES['隔日勤務'];
+  if(base.family!=='fixed')return base;
+  const rule=payrollRuleForMonth(ym);
+  const rate=PAYROLL_RULES.fixedRateForType(type,rule);
+  return {...base,rate};
+}
 function currentEntries(){const ym=$('currentMonth').value;return state.entries.filter(e=>payrollMonthOf(e.date)===ym).sort((a,b)=>a.date.localeCompare(b.date));}
-function calcNet(gross){return Math.round(Number(gross||0)/(1+Number(state.settings.taxRate||0)/100));}
+function calcNet(gross,ym=selectedPayrollMonth()){return Math.round(Number(gross||0)/(1+Number(payrollRuleForMonth(ym).taxRate||0)/100));}
 function payrollGross(e){return Number(e?.adjustedGrossSales ?? e?.grossRevenue ?? 0);}
 function grossSalesOf(e){return Number(e?.grossSales ?? e?.reportedGrossRevenue ?? e?.grossRevenue ?? 0);}
 function adjustmentValue(id){return Math.max(0,Number($(id)?.value||0));}
@@ -111,14 +120,12 @@ function calculateAdjustedGross(){
   const idleB=adjustmentValue('idleB');
   return Math.max(0,gross+otherPlus-otherMinus-idleA-idleB);
 }
-function monthlyRevenue(net){const r=currentRule(),fare=Number(state.settings.fareRevisionCoefficient||1);return r.family==='fixed'?net*fare:net*fare*Number(state.settings.payRevenueCoefficient||0.9585);}
-function commission(revenue){
-  const r=currentRule();let A=0,B=0,C=0,names=[];
-  if(r.family==='fixed'){A=revenue*r.rate/100;return {A,B,C,total:A,names:[[r.display,A]]};}
-  if(r.calc==='kaku'){A=revenue*.4144;B=Math.max(0,Math.min(revenue,1200000)-420000)*.1905;names=[['隔日歩合給A',A],['隔日歩合給B',B]];}
-  if(r.calc==='day'){A=revenue*.458;B=Math.max(0,revenue-378000)*.1405;C=Math.max(0,revenue-748000)*.122;names=[['昼日勤歩合給A',A],['昼日勤歩合給B',B],['昼日勤歩合給C',C]];}
-  if(r.calc==='night'){A=revenue*.3798;B=Math.max(0,Math.min(revenue,1200000)-420000)*.2095;names=[['夜日勤歩合給A',A],['夜日勤歩合給B',B]];}
-  return {A,B,C,total:A+B+C,names};
+function monthlyRevenue(net,ym=selectedPayrollMonth()){const r=currentRule(ym),rule=payrollRuleForMonth(ym),fare=Number(rule.fareRevisionCoefficient||1);return r.family==='fixed'?net*fare:net*fare*Number(rule.payRevenueCoefficient||0.9585);}
+function commission(revenue,ym=selectedPayrollMonth()){
+  const r=currentRule(ym),rule=payrollRuleForMonth(ym);
+  const result=PAYROLL_RULES.commissionFor(state.settings.shiftType,revenue,rule);
+  if(r.family==='fixed')result.names=[[r.display,result.A]];
+  return result;
 }
 function timeToMinutes(v){if(!v)return null;const [h,m]=v.split(':').map(Number);return h*60+m;}
 function entryTimeInfo(e){
@@ -132,16 +139,16 @@ function entryTimeInfo(e){
   const night=Math.max(0,Math.min(overlap,work)-nightBreak);
   return {duration,work,night};
 }
-function premiumCalculation(entries,c){
+function premiumCalculation(entries,c,ym=selectedPayrollMonth()){
   entries=entries.filter(e=>leaveUnits(e)===0);
-  const r=currentRule();let work=0,night=0,dailyExcess=0,statHoliday=0,nonStatHoliday=0,regularWork=0;
+  const r=currentRule(ym);let work=0,night=0,dailyExcess=0,statHoliday=0,nonStatHoliday=0,regularWork=0;
   for(const e of entries){const t=entryTimeInfo(e);work+=t.work;night+=t.night;if(e.holidayType==='statutory')statHoliday+=t.work;else if(e.holidayType==='nonstatutory')nonStatHoliday+=t.work;else{regularWork+=t.work;dailyExcess+=Math.max(0,t.work-r.shiftMinutes);}}
   const monthlyExcess=Math.max(0,regularWork-r.monthlyMinutes);
   const statutoryOT=Math.max(0,monthlyExcess);
   const scheduledOnly=Math.max(0,dailyExcess-statutoryOT);
   const over60=Math.max(0,statutoryOT-3600),statutoryUpTo60=Math.max(0,statutoryOT-over60);
   const hourly=work>0?c.total/(work/60):0;
-  const s=state.settings;
+  const s=payrollRuleForMonth(ym);
   const items={
     scheduled:hourly*(scheduledOnly/60)*(Number(s.scheduledOvertimeRate)/100),
     statutory:hourly*(statutoryUpTo60/60)*(Number(s.statutoryOvertimeRate)/100),
@@ -214,16 +221,17 @@ function additionalPaymentsForMonth(ym){
   return (Array.isArray(state.settings.additionalPayments)?state.settings.additionalPayments:[]).filter(x=>x&&x.date&&payrollMonthOf(x.date)===ym).map(calculateAdditionalPayment);
 }
 function totals(entries=currentEntries()){
+  const ym=$('currentMonth')?.value||today().slice(0,7),payrollRule=payrollRuleForMonth(ym);
   const actual=entries.filter(e=>leaveUnits(e)===0);
-  const gross=actual.reduce((s,e)=>s+payrollGross(e),0),net=actual.reduce((s,e)=>s+Math.round(calcNet(payrollGross(e))),0),revenue=monthlyRevenue(net),c=commission(revenue),rule=currentRule();
+  const gross=actual.reduce((s,e)=>s+payrollGross(e),0),net=actual.reduce((s,e)=>s+Math.round(calcNet(payrollGross(e),ym)),0),revenue=monthlyRevenue(net,ym),c=commission(revenue,ym),rule=currentRule(ym);
   const actualCompleted=actual.filter(e=>entryTimeInfo(e).work>=rule.shiftMinutes).length;
   const leaveCredit=entries.reduce((s,e)=>s+paidLeaveShiftCredit(e),0);
   const completedStandardShifts=actualCompleted+leaveCredit;
-  const model=rule.modelAllowance&&completedStandardShifts>=rule.plannedShifts?Number(state.settings.modelWorkAllowance||0):0;
-  const accidentFree=actual.filter(e=>!e.hadAccident).length*Number(state.settings.accidentFreeAllowance||0),violationFree=actual.filter(e=>!e.hadViolation).length*Number(state.settings.violationFreeAllowance||0);
+  const model=rule.modelAllowance&&completedStandardShifts>=rule.plannedShifts?Number(payrollRule.modelWorkAllowance||0):0;
+  const accidentFree=actual.filter(e=>!e.hadAccident).length*Number(payrollRule.accidentFreeAllowance||0),violationFree=actual.filter(e=>!e.hadViolation).length*Number(payrollRule.violationFreeAllowance||0);
   const paidLeaveDays=entries.reduce((s,e)=>s+leaveUnits(e),0);
-  const allowances=model+accidentFree+violationFree,paidLeavePay=paidLeaveDays*Number(state.settings.paidLeaveDailyRate||0),premium=premiumCalculation(actual,c);
-  const ym=$('currentMonth')?.value||today().slice(0,7),deductionSettings=effectiveDeductionSettings(ym),additionalPaymentItems=additionalPaymentsForMonth(ym);
+  const allowances=model+accidentFree+violationFree,paidLeavePay=paidLeaveDays*Number(state.settings.paidLeaveDailyRate||0),premium=premiumCalculation(actual,c,ym);
+  const deductionSettings=effectiveDeductionSettings(ym),additionalPaymentItems=additionalPaymentsForMonth(ym);
   const hourlyPayments=additionalPaymentItems.filter(x=>x.type!=='other').reduce((sum,x)=>sum+Number(x.amount||0),0),otherPayments=additionalPaymentItems.filter(x=>x.type==='other').reduce((sum,x)=>sum+Number(x.amount||0),0),additionalPayments=hourlyPayments+otherPayments;
   const grossPay=Math.ceil(c.total+premium.total+allowances+paidLeavePay+additionalPayments);
   const social=Number(deductionSettings.healthInsurance||0)+Number(deductionSettings.pension||0)+Number(deductionSettings.employmentInsurance||0);
@@ -304,13 +312,15 @@ function phase8AllDailyEntries(){
   }
   return [...byId.values()].filter(e=>e?.date).sort((a,b)=>a.date.localeCompare(b.date));
 }
-function phase8EstimateForEntries(entries,label){
+function phase8EstimateForEntries(entries,label,ym=''){
+  const payrollMonth=ym||(entries.find(e=>e?.date)?.date?payrollMonthOf(entries.find(e=>e?.date).date):selectedPayrollMonth());
+  const payrollRule=payrollRuleForMonth(payrollMonth);
   const actual=entries.filter(e=>leaveUnits(e)===0);
   const gross=actual.reduce((s,e)=>s+payrollGross(e),0);
-  const net=actual.reduce((s,e)=>s+Math.round(calcNet(payrollGross(e))),0);
-  const revenue=monthlyRevenue(net),c=commission(revenue),premium=premiumCalculation(actual,c);
-  const accidentFree=actual.filter(e=>!e.hadAccident).length*Number(state.settings.accidentFreeAllowance||0);
-  const violationFree=actual.filter(e=>!e.hadViolation).length*Number(state.settings.violationFreeAllowance||0);
+  const net=actual.reduce((s,e)=>s+Math.round(calcNet(payrollGross(e),payrollMonth)),0);
+  const revenue=monthlyRevenue(net,payrollMonth),c=commission(revenue,payrollMonth),premium=premiumCalculation(actual,c,payrollMonth);
+  const accidentFree=actual.filter(e=>!e.hadAccident).length*Number(payrollRule.accidentFreeAllowance||0);
+  const violationFree=actual.filter(e=>!e.hadViolation).length*Number(payrollRule.violationFreeAllowance||0);
   const paidLeaveDays=entries.reduce((s,e)=>s+leaveUnits(e),0);
   const paidLeavePay=paidLeaveDays*Number(state.settings.paidLeaveDailyRate||0);
   const grossPay=Math.ceil(c.total+premium.total+accidentFree+violationFree+paidLeavePay);
@@ -519,7 +529,7 @@ function drawPhase8Chart(rows){
 function phase8AxisNumber(v,key){if(key==='effectiveReturn'||key==='takeHomeReturn')return `${Math.round(v)}%`;if(v>=10000)return `${Math.round(v/1000)}k`;return String(Math.round(v));}
 
 function populateShiftSelects(){for(const id of ['shiftType','onboardingShiftType']){const sel=$(id);sel.innerHTML='';for(const k of Object.keys(SHIFT_RULES)){const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);}}}
-function ruleDescription(type){const r=SHIFT_RULES[type];if(!r)return '';const desc=r.family==='fixed'?`定時制・積算歩合率 ${r.rate.toFixed(2)}%（給与算定係数0.9585なし、歩合給Bなし）`:'通常勤務・累進歩合';return `<strong>${r.label}</strong><br>1乗務所定：${minutesText(r.shiftMinutes)}／月間所定：${minutesText(r.monthlyMinutes)}／所定乗務：${r.plannedShifts}回${r.equivalentDays?`（実質${r.equivalentDays}日相当）`:''}<br>${desc}`;}
+function ruleDescription(type,ym=selectedPayrollMonth()){const r=currentRule(ym,type);if(!r)return '';const desc=r.family==='fixed'?`定時制・積算歩合率 ${r.rate.toFixed(2)}%（給与算定係数なし、歩合給Bなし）`:'通常勤務・累進歩合';return `<strong>${r.label}</strong><br>1乗務所定：${minutesText(r.shiftMinutes)}／月間所定：${minutesText(r.monthlyMinutes)}／所定乗務：${r.plannedShifts}回${r.equivalentDays?`（実質${r.equivalentDays}日相当）`:''}<br>${desc}`;}
 function payRow(label,value){return `<div><span>${label}</span><strong>${yen(value)}</strong></div>`;}
 function renderBreakdown(t){
   let html='<h4>積算歩合給</h4>';for(const [n,v] of t.c.names)html+=payRow(n,v);html+=payRow('積算歩合給計',t.c.total);
@@ -529,18 +539,15 @@ function renderBreakdown(t){
   html+='<h4>法定控除</h4>'+payRow('健康保険料',t.deductionSettings.healthInsurance)+payRow('厚生年金保険料',t.deductionSettings.pension)+payRow('雇用保険料',t.deductionSettings.employmentInsurance)+payRow('所得税（令和8年分・自動）',t.incomeTax)+payRow('住民税',t.deductionSettings.residentTax)+payRow('法定控除小計',t.statutoryDeductions);
   html+='<h4>任意控除</h4>'+payRow('組合費',t.deductionSettings.unionFee)+payRow('共済費',t.deductionSettings.mutualAidFee)+payRow('任意控除小計',t.voluntaryDeductions);
   html+='<h4>その他控除</h4>';for(const x of (t.deductionSettings.otherItems||[]))html+=payRow(x.name||'その他控除',x.amount);html+=payRow('その他控除小計',t.otherDeductions)+payRow('控除合計',t.deductions)+payRow('概算手取り',t.takeHome);
-  html+=`<p class="note">所定労働達成 ${t.completedStandardShifts}/${currentRule().plannedShifts}乗務／総実働 ${minutesText(t.premium.work)}／深夜 ${minutesText(t.premium.night)}／歩合時間単価（概算） ${yen(t.premium.hourly)}</p>`;$('paySlipBreakdown').innerHTML=html;
+  html+=`<p class="note">所定労働達成 ${t.completedStandardShifts}/${currentRule(selectedPayrollMonth()).plannedShifts}乗務／総実働 ${minutesText(t.premium.work)}／深夜 ${minutesText(t.premium.night)}／歩合時間単価（概算） ${yen(t.premium.hourly)}</p>`;$('paySlipBreakdown').innerHTML=html;
 }
 function render(){const t=totals(),ym=$('currentMonth').value,pp=payrollPeriod(ym);$('headerShift').textContent=`勤務区分：${state.settings.shiftType||'未設定'}`;$('reportTitle').textContent=`${ym.replace('-','年')}月 給与シミュレーション`;$('payPeriod').textContent=`給与対象期間：${formatDateJP(pp.start)}〜${formatDateJP(pp.end)}`;$('sumGross').textContent=yen(t.gross);$('sumNet').textContent=yen(t.net);$('payRevenue').textContent=yen(t.revenue);$('commissionTotal').textContent=yen(t.c.total);$('premiumTotal').textContent=yen(t.premium.total);$('allowances').textContent=yen(t.allowances);$('paidLeavePay').textContent=yen(t.paidLeavePay);$('grossPay').textContent=yen(t.grossPay);$('incomeTaxResult').textContent=yen(t.incomeTax);$('deductions').textContent=yen(t.deductions);$('takeHome').textContent=yen(t.takeHome);$('shiftCount').textContent=`${currentEntries().filter(e=>leaveUnits(e)===0).length}回／有給${t.paidLeaveDays}日`;renderBreakdown(t);renderEntries();renderHistory();updateSettingsViews();renderMonthlyDashboard();}
 function holidayLabel(v){return v==='statutory'?'法定休日':v==='nonstatutory'?'法定外休日':'通常';}
 function renderEntries(){const body=$('entriesTable').querySelector('tbody');body.innerHTML='';for(const e of currentEntries()){const t=entryTimeInfo(e),leave=leaveUnits(e)>0,tr=document.createElement('tr');tr.innerHTML=`<td>${e.date}</td><td>${leave?'—':yen(payrollGross(e))}</td><td>${leave?'—':(e.clockIn||'—')}</td><td>${leave?'—':(e.clockOut||'—')}</td><td>${minutesText(t.work)}</td><td>${minutesText(t.night)}</td><td>${leave?leaveLabel(leaveUnits(e)):holidayLabel(e.holidayType)}</td><td class="no-print"><button class="ghost" data-edit="${e.id}">編集</button> <button class="danger" data-del="${e.id}">削除</button></td>`;body.appendChild(tr);}}
 function renderHistory(){const d=$('historyList');d.innerHTML='';if(!state.history.length){d.innerHTML='<p class="note">まだ給与締め履歴はありません。</p>';return;}for(const h of state.history.slice().reverse()){const x=document.createElement('div');x.className='history-item';x.innerHTML=`<strong>${h.month}給与（${h.shiftType}）</strong><br>対象期間 ${h.periodStart}〜${h.periodEnd}<br>税込営収 ${yen(h.gross)}／積算歩合給 ${yen(h.commission)}／概算手取り ${yen(h.takeHome)}／${h.count}乗務／有給${Number(h.paidLeaveDays||0)}日`;d.appendChild(x);}}
-function updateSettingsViews(){const r=currentRule();$('shiftRuleInfo').innerHTML=ruleDescription(state.settings.shiftType);$('taxRateDisplay').value=`${state.settings.taxRate}%`;$('standardShiftHoursDisplay').value=minutesText(r.shiftMinutes);$('standardHoursDisplay').value=minutesText(r.monthlyMinutes);if($('paidLeaveCurrentBalance'))$('paidLeaveCurrentBalance').value=`${paidLeaveBalance()}日`;renderPaidLeaveHistory();}
+function updateSettingsViews(){const ym=selectedPayrollMonth(),r=currentRule(ym),rule=payrollRuleForMonth(ym);$('shiftRuleInfo').innerHTML=ruleDescription(state.settings.shiftType,ym);$('taxRateDisplay').value=`${rule.taxRate}%`;$('standardShiftHoursDisplay').value=minutesText(r.shiftMinutes);$('standardHoursDisplay').value=minutesText(r.monthlyMinutes);if($('paidLeaveCurrentBalance'))$('paidLeaveCurrentBalance').value=`${paidLeaveBalance()}日`;renderPaidLeaveHistory();}
 function loadSettingsForm(){for(const k of Object.keys(state.settings))if($(k))$(k).value=state.settings[k];$('shiftType').value=state.settings.shiftType;updateSettingsViews();}
 function saveSettingsForm(){const nums=['healthInsurance','pension','employmentInsurance','residentTax','unionFee','mutualAidFee','otherDeduction','dependentCount','paidLeaveDailyRate','paidLeaveOpeningBalance','paidLeaveNextGrantDays'];state.settings.shiftType=$('shiftType').value;for(const k of nums)state.settings[k]=Number($(k).value||0);state.settings.paidLeaveNextGrantDate=$('paidLeaveNextGrantDate').value;state.settings.withholdingCategory=$('withholdingCategory').value;saveState();applyDuePaidLeaveGrant();render();}
-const ADMIN_FIELDS=['fareRevisionCoefficient','payRevenueCoefficient','taxRate','modelWorkAllowance','accidentFreeAllowance','violationFreeAllowance','statutoryOvertimeRate','scheduledOvertimeRate','over60Rate','statutoryHolidayRate','nonStatutoryHolidayRate','nightRate'];
-function loadAdminForm(){for(const k of ADMIN_FIELDS)$(k).value=state.settings[k];}
-function saveAdminForm(){for(const k of ADMIN_FIELDS)state.settings[k]=Number($(k).value||0);saveState();render();}
 function breakValue(prefix){return Number($(prefix+'Hours').value||0)*60+Number($(prefix+'Minutes').value||0);}
 let tapNumberTarget='';
 let tapNumberBuffer='';
@@ -819,7 +826,7 @@ $('exportCsv').onclick=()=>{
         leave?0:Number(e.idleA||0),
         leave?0:Number(e.idleB||0),
         leave?0:payrollGross(e),
-        leave?0:calcNet(payrollGross(e)),
+        leave?0:calcNet(payrollGross(e),$('currentMonth').value),
         leave?'':e.clockIn,leave?'':e.clockOut,
         leave?0:e.normalBreakMinutes,leave?0:e.nightBreakMinutes,
         t.work,t.night,leave?'':holidayLabel(e.holidayType)
@@ -832,7 +839,7 @@ $('exportCsv').onclick=()=>{
   a.download=`taxi-pay-${$('currentMonth').value}.csv`;
   a.click();
 };
-$('closeMonth').onclick=()=>{const entries=currentEntries();if(!entries.length)return alert('給与締めするデータがありません。');const ym=$('currentMonth').value,pp=payrollPeriod(ym);if(!confirm(`${ym}給与を締めます。履歴保存後、この期間の勤務データは削除されます。`))return;const t=totals(entries);state.settings.paidLeaveUsageHistory=Array.isArray(state.settings.paidLeaveUsageHistory)?state.settings.paidLeaveUsageHistory:[];if(t.paidLeaveDays>0&&!state.settings.paidLeaveUsageHistory.some(x=>x.month===ym))state.settings.paidLeaveUsageHistory.push({month:ym,days:t.paidLeaveDays,periodStart:pp.start,periodEnd:pp.end,closedAt:new Date().toISOString()});state.history.push({month:ym,shiftType:state.settings.shiftType,periodStart:pp.start,periodEnd:pp.end,gross:t.gross,grossPay:t.grossPay,commission:t.c.total,takeHome:t.takeHome,workMinutes:t.premium.work,breakMinutes:entries.filter(e=>leaveUnits(e)===0).reduce((s,e)=>s+Number(e.normalBreakMinutes||0)+Number(e.nightBreakMinutes||0),0),count:entries.filter(e=>leaveUnits(e)===0).length,paidLeaveDays:t.paidLeaveDays,dailyEntries:clone(entries),closedAt:new Date().toISOString()});state.entries=state.entries.filter(e=>payrollMonthOf(e.date)!==ym);saveState();render();};
+$('closeMonth').onclick=()=>{const entries=currentEntries();if(!entries.length)return alert('給与締めするデータがありません。');const ym=$('currentMonth').value,pp=payrollPeriod(ym);if(!confirm(`${ym}給与を締めます。履歴保存後、この期間の勤務データは削除されます。`))return;const t=totals(entries);state.settings.paidLeaveUsageHistory=Array.isArray(state.settings.paidLeaveUsageHistory)?state.settings.paidLeaveUsageHistory:[];if(t.paidLeaveDays>0&&!state.settings.paidLeaveUsageHistory.some(x=>x.month===ym))state.settings.paidLeaveUsageHistory.push({month:ym,days:t.paidLeaveDays,periodStart:pp.start,periodEnd:pp.end,closedAt:new Date().toISOString()});state.history.push({month:ym,shiftType:state.settings.shiftType,periodStart:pp.start,periodEnd:pp.end,gross:t.gross,grossPay:t.grossPay,commission:t.c.total,takeHome:t.takeHome,workMinutes:t.premium.work,breakMinutes:entries.filter(e=>leaveUnits(e)===0).reduce((s,e)=>s+Number(e.normalBreakMinutes||0)+Number(e.nightBreakMinutes||0),0),count:entries.filter(e=>leaveUnits(e)===0).length,paidLeaveDays:t.paidLeaveDays,payrollRule:clone(payrollRuleForMonth(ym)),dailyEntries:clone(entries),closedAt:new Date().toISOString()});state.entries=state.entries.filter(e=>payrollMonthOf(e.date)!==ym);saveState('close-month');render();};
 phase8PopulateMetrics();
 window.phase8CustomActive=false;
 $('phase8Period')?.addEventListener('change',()=>{window.phase8CustomActive=false;$('phase8CustomPeriod').hidden=true;renderMonthlyDashboard();});
@@ -851,8 +858,7 @@ $('phase8Secondary')?.addEventListener('change',renderMonthlyDashboard);
 $('phase8AddSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=false;$('phase8RemoveSecondary').hidden=false;$('phase8AddSecondary').hidden=true;phase8SyncChartTypeAvailability();renderMonthlyDashboard();});
 $('phase8RemoveSecondary')?.addEventListener('click',()=>{$('phase8SecondaryWrap').hidden=true;$('phase8RemoveSecondary').hidden=true;$('phase8AddSecondary').hidden=false;phase8SyncChartTypeAvailability();renderMonthlyDashboard();});
 window.addEventListener('resize',()=>{if(!$('phase8Chart')?.closest('[hidden]'))drawPhase8Chart((()=>{let r=phase8Rows(),p=$('phase8Period')?.value||'12';return window.phase8CustomActive?phase8CustomRows():p==='all'?r:p==='current'?phase8CurrentDailyRows():r.slice(-Number(p));})());});
-$('openSettings').onclick=()=>{loadSettingsForm();$('settingsDialog').showModal();};$('shiftType').onchange=()=>{$('shiftRuleInfo').innerHTML=ruleDescription($('shiftType').value);const r=SHIFT_RULES[$('shiftType').value];$('standardShiftHoursDisplay').value=minutesText(r.shiftMinutes);$('standardHoursDisplay').value=minutesText(r.monthlyMinutes);};$('saveSettings').onclick=e=>{e.preventDefault();saveSettingsForm();$('settingsDialog').close();};
-$('openAdmin').onclick=()=>{const p=prompt('開発者パスワードを入力してください。');if(p!==ADMIN_PASSWORD)return alert('パスワードが違います。');loadAdminForm();$('adminDialog').showModal();};$('saveAdmin').onclick=e=>{e.preventDefault();saveAdminForm();$('adminDialog').close();alert('開発者設定を保存しました。');};
+$('openSettings').onclick=()=>{loadSettingsForm();$('settingsDialog').showModal();};$('shiftType').onchange=()=>{$('shiftRuleInfo').innerHTML=ruleDescription($('shiftType').value);const r=currentRule(selectedPayrollMonth(),$('shiftType').value);$('standardShiftHoursDisplay').value=minutesText(r.shiftMinutes);$('standardHoursDisplay').value=minutesText(r.monthlyMinutes);};$('saveSettings').onclick=e=>{e.preventDefault();saveSettingsForm();$('settingsDialog').close();};
 $('onboardingShiftType').onchange=()=>{$('onboardingRule').innerHTML=ruleDescription($('onboardingShiftType').value);};$('completeOnboarding').onclick=e=>{e.preventDefault();if(!$('agreeDisclaimer').checked)return alert('確認欄にチェックしてください。');state.settings.shiftType=$('onboardingShiftType').value;state.initialized=true;saveState('onboarding-complete');$('onboardingDialog').close();render();};
 applyDuePaidLeaveGrant();
 // 診断版v4では古いキャッシュを避けるためService Workerを登録しない。

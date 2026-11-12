@@ -1,4 +1,4 @@
-const CACHE = 'taxi-pay-v1.4-beta-20261016-help-02';
+const CACHE = 'taxi-pay-v1.4-beta-20261113-payroll-rules-01';
 
 const FILES = [
   './',
@@ -10,6 +10,7 @@ const FILES = [
   './phase11-archive-restore.js',
   './phase11-live-test.js',
   './app.js',
+  './payroll-rules.js',
   './tax-table-2026.js',
   './manifest.json',
   './firebase-config.js',
@@ -30,6 +31,8 @@ const FILES = [
   './admin.js',
   './system-info.js',
   './system-info.html',
+  './payroll-rules.html',
+  './payroll-rules-admin.js',
   './phase75-ops.js',
   './app-meta.json',
   './app-meta.js',

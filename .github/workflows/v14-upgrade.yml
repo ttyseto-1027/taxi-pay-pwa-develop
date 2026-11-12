@@ -29,6 +29,8 @@ jobs:
           node --check firebase-auth.js
           node --check phase75-ops.js
           node --check phase7-ui.js
+          node --check payroll-rules.js
+          node --check payroll-rules-admin.js
           node --check app.js
           node --check diagnostics.js
           node --check boot.js
@@ -45,6 +47,7 @@ jobs:
           node tests/phase14-production-readiness-v14.cjs
           node tests/phase15-develop-preflight-v14.cjs
           node tests/phase16-help-v14.cjs
+          node tests/phase17-payroll-rules-v14.cjs
       - name: Static integration guards
         run: |
           grep -q 'data-integrity-v14.js' index.html
