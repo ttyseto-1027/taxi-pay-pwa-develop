@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20261113-01",
-  "cacheVersion": "taxi-pay-v1.4-beta-20261113-payroll-rules-01",
-  "releasedAtJst": "2026/11/13 00:30:54 JST",
+  "build": "20261113-02",
+  "cacheVersion": "taxi-pay-v1.4-beta-20261113-dispatch-fee-02",
+  "releasedAtJst": "2026/11/13 00:59:23 JST",
   "environment": "DEVELOP"
 }
