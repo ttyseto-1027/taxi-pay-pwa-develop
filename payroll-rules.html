@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0f4c5c">
+<title>給与計算条件 | タクシー給与シミュレーター</title>
+<link rel="stylesheet" href="styles.css?v=20261113-01">
+</head>
+<body class="admin-page auth-checking">
+<section id="authCheckingPanel" class="auth-checking-panel" role="status" aria-live="polite"><div class="auth-card auth-checking-card"><h1>給与計算条件</h1><p>管理者権限を確認しています…</p></div></section>
+<section id="payrollRulesAuthGate" class="auth-gate" hidden><div class="auth-card"><h1>給与計算条件</h1><p id="payrollRulesAuthMessage">管理者のGoogleアカウントでログインしてください。</p><button id="payrollRulesLogin" type="button">Googleでログイン</button><p><a href="index.html">アプリへ戻る</a></p></div></section>
+<header class="app-header admin-app-header"><div><h1 class="admin-page-title"><span aria-hidden="true">🧮</span> 給与計算条件</h1><p><span data-app-version></span></p></div><div class="header-controls admin-header-links"><a class="ghost admin-link" href="admin.html">ユーザー管理</a><a class="ghost admin-link" href="announcement.html">お知らせ管理</a><a class="ghost admin-link" href="system-info.html">システム情報</a><a class="ghost admin-link" href="index.html">アプリへ戻る</a><button class="ghost" id="payrollRulesLogout" type="button">ログアウト</button></div></header>
+<main class="payroll-rules-main">
+<section class="card payroll-rules-notice" role="note"><h2>この端末だけに適用されます</h2><p>保存した条件は、この管理者端末のDevelop版にだけ保存されます。Firebase、一般利用者、ほかの端末へは送信されません。</p><p>給与月ごとに、適用開始給与月が最も新しい条件を使用します。条件を追加しても、それ以前の給与月の計算条件は変わりません。</p></section>
+<form id="payrollRulesForm">
+<section class="card"><div class="payroll-rules-heading"><div><h2>適用開始</h2><p class="note">同じ給与月を保存すると、その月の条件を更新します。</p></div><label>適用開始給与月<input id="effectiveMonth" required type="month"></label></div><div class="payroll-active-rule" id="payrollActiveRule" aria-live="polite"></div></section>
+
+<section class="card"><h2>基本係数</h2><div class="form-grid payroll-rule-grid">
+<label>消費税率（%）<input data-rule-field="taxRate" min="0" max="100" step="0.1" required type="number"></label>
+<label>運賃改定係数<input data-rule-field="fareRevisionCoefficient" min="0.0001" max="5" step="0.0001" required type="number"></label>
+<label>給与算定係数<input data-rule-field="payRevenueCoefficient" min="0.0001" max="5" step="0.0001" required type="number"></label>
+</div></section>
+
+<section class="card"><h2>歩合給</h2>
+<details open><summary>隔日勤務</summary><div class="form-grid payroll-rule-grid"><label>歩合給A率（%）<input data-rule-field="kakuARate" min="0" max="100" step="0.01" required type="number"></label><label>歩合給B開始額（円）<input data-rule-field="kakuBStart" min="0" step="1000" required type="number"></label><label>歩合給B最高算定額（円）<input data-rule-field="kakuBCap" min="0" step="1000" required type="number"></label><label>歩合給B率（%）<input data-rule-field="kakuBRate" min="0" max="100" step="0.01" required type="number"></label></div></details>
+<details><summary>昼日勤</summary><div class="form-grid payroll-rule-grid"><label>歩合給A率（%）<input data-rule-field="dayARate" min="0" max="100" step="0.01" required type="number"></label><label>歩合給B開始額（円）<input data-rule-field="dayBStart" min="0" step="1000" required type="number"></label><label>歩合給B率（%）<input data-rule-field="dayBRate" min="0" max="100" step="0.01" required type="number"></label><label>歩合給C開始額（円）<input data-rule-field="dayCStart" min="0" step="1000" required type="number"></label><label>歩合給C率（%）<input data-rule-field="dayCRate" min="0" max="100" step="0.01" required type="number"></label></div></details>
+<details><summary>夜日勤</summary><div class="form-grid payroll-rule-grid"><label>歩合給A率（%）<input data-rule-field="nightARate" min="0" max="100" step="0.01" required type="number"></label><label>歩合給B開始額（円）<input data-rule-field="nightBStart" min="0" step="1000" required type="number"></label><label>歩合給B最高算定額（円）<input data-rule-field="nightBCap" min="0" step="1000" required type="number"></label><label>歩合給B率（%）<input data-rule-field="nightBRate" min="0" max="100" step="0.01" required type="number"></label></div></details>
+<details><summary>定時制</summary><div class="form-grid payroll-rule-grid"><label>定隔 積算歩合率（%）<input data-rule-field="fixedKakuRate" min="0" max="100" step="0.01" required type="number"></label><label>定昼 積算歩合率（%）<input data-rule-field="fixedDayRate" min="0" max="100" step="0.01" required type="number"></label><label>定夜 積算歩合率（%）<input data-rule-field="fixedNightRate" min="0" max="100" step="0.01" required type="number"></label></div></details>
+</section>
+
+<section class="card"><h2>手当</h2><div class="form-grid payroll-rule-grid"><label>模範勤務手当／月（円）<input data-rule-field="modelWorkAllowance" min="0" step="100" required type="number"></label><label>無事故手当／乗務（円）<input data-rule-field="accidentFreeAllowance" min="0" step="100" required type="number"></label><label>無違反手当／乗務（円）<input data-rule-field="violationFreeAllowance" min="0" step="100" required type="number"></label></div></section>
+
+<section class="card"><h2>割増率</h2><div class="form-grid payroll-rule-grid"><label>法定超 時間外割増（%）<input data-rule-field="statutoryOvertimeRate" min="0" max="100" step="0.01" required type="number"></label><label>所定超 時間外割増（%）<input data-rule-field="scheduledOvertimeRate" min="0" max="100" step="0.01" required type="number"></label><label>月60時間超 割増（%）<input data-rule-field="over60Rate" min="0" max="100" step="0.01" required type="number"></label><label>法定休日割増（%）<input data-rule-field="statutoryHolidayRate" min="0" max="100" step="0.01" required type="number"></label><label>法定外休日割増（%）<input data-rule-field="nonStatutoryHolidayRate" min="0" max="100" step="0.01" required type="number"></label><label>深夜割増（%）<input data-rule-field="nightRate" min="0" max="100" step="0.01" required type="number"></label></div></section>
+
+<section class="card"><div class="actions"><button id="savePayrollRules" type="submit">この給与月から適用</button><button class="ghost" id="loadEffectivePayrollRules" type="button">この給与月の適用条件を読み込む</button><button class="ghost" id="resetPayrollRules" type="button">標準値を入力</button></div><p class="phase2-message" id="payrollRulesStatus" aria-live="polite"></p></section>
+</form>
+
+<section class="card"><h2>条件履歴</h2><p class="note">保存済みの適用開始給与月です。削除すると、その月以降は1つ前の条件が適用されます。</p><div class="payroll-rule-history" id="payrollRuleHistory"></div></section>
+</main>
+<script src="firebase-config.js?v=20261113-01"></script><script src="app-meta.js?v=20261113-01"></script><script src="data-integrity-v14.js?v=20260827-01"></script><script src="storage-safety.js?v=20260827-01"></script><script src="payroll-rules.js?v=20261113-01"></script><script type="module" src="payroll-rules-admin.js?v=20261113-01"></script>
+</body>
+</html>
