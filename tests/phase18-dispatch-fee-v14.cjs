@@ -14,6 +14,7 @@ const meta=JSON.parse(read('app-meta.json'));
 
 // 1. The daily input exposes one independent dispatch-fee field.
 assert.equal((html.match(/id="dispatchFee"/g)||[]).length,1);
+assert.ok(html.includes('id="dispatchFee" inputmode="numeric" pattern="[0-9]*" type="text" value=""'));
 assert.ok(html.includes('配車手数料'));
 
 // 2. The visible formula identifies the dispatch fee as a subtraction.
@@ -40,7 +41,7 @@ assert.ok(app.includes('otherMinus:0,dispatchFee:0,idleA:0'));
 assert.ok(app.includes("$('dispatchFee').value=Number(e.dispatchFee||0)"));
 
 // 7. Draft save and restore include the field.
-assert.ok(draft.includes("dispatchFee:$('dispatchFee')?.value||'0'"));
+assert.ok(draft.includes("dispatchFee:$('dispatchFee')?.value||''"));
 assert.ok(draft.includes("'otherMinus','dispatchFee','idleA'"));
 
 // 8. CSV output has a matching header and data cell.
@@ -52,7 +53,7 @@ assert.ok(recovery.includes("dispatchFee:'配車手数料'"));
 assert.ok(recovery.includes('gross|Plus|Minus|Fee|idle'));
 
 // 10. Build metadata and the Service Worker cache are synchronized.
-assert.equal(meta.build,'20261113-02');
+assert.equal(meta.build,'20261114-01');
 assert.ok(sw.includes(meta.cacheVersion));
 
 console.log('Phase 18 dispatch fee regression: 10/10 PASS');
