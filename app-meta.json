@@ -1,7 +1,7 @@
 {
   "version": "1.4β",
-  "build": "20261113-02",
-  "cacheVersion": "taxi-pay-v1.4-beta-20261113-dispatch-fee-02",
-  "releasedAtJst": "2026/11/13 00:59:23 JST",
+  "build": "20261114-01",
+  "cacheVersion": "taxi-pay-v1.4-beta-20261114-dispatch-fee-empty-01",
+  "releasedAtJst": "2026/11/14 00:26:56 JST",
   "environment": "DEVELOP"
 }
